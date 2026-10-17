@@ -31,7 +31,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Integration tests for subproject aggregation with the TestKit.
  */
-class PublishingPluginIntegrationTests {
+class MavenCentralPublishingPluginIntegrationTests {
 
   @TempDir
   Path directory;
@@ -45,7 +45,7 @@ class PublishingPluginIntegrationTests {
             """);
     write("build.gradle", """
             plugins {
-              id 'cn.taketoday.publishing'
+              id 'cn.taketoday.maven-central-publishing'
             }
             subprojects {
               apply plugin: 'java'
@@ -75,7 +75,7 @@ class PublishingPluginIntegrationTests {
   void registersMavenCentralTasksForSubprojectPublications() throws IOException {
     write("settings.gradle", "rootProject.name = 'aggregate'; include 'library'");
     write("build.gradle", """
-            plugins { id 'cn.taketoday.publishing' }
+            plugins { id 'cn.taketoday.maven-central-publishing' }
             project(':library') {
               apply plugin: 'java'
               apply plugin: 'maven-publish'
@@ -107,7 +107,7 @@ class PublishingPluginIntegrationTests {
             """);
     write("build.gradle", """
             plugins {
-              id 'cn.taketoday.publishing'
+              id 'cn.taketoday.maven-central-publishing'
             }
             project(':library') {
               apply plugin: 'java'
@@ -149,7 +149,7 @@ class PublishingPluginIntegrationTests {
             """);
     write("build.gradle", """
             plugins {
-              id 'cn.taketoday.publishing'
+              id 'cn.taketoday.maven-central-publishing'
             }
             apply plugin: 'java'
             apply plugin: 'maven-publish'
@@ -175,7 +175,7 @@ class PublishingPluginIntegrationTests {
             include 'library'
             """);
     write("build.gradle", """
-            plugins { id 'cn.taketoday.publishing' }
+            plugins { id 'cn.taketoday.maven-central-publishing' }
             version = '1.0-SNAPSHOT'
             project(':library') {
               apply plugin: 'java'
@@ -210,7 +210,7 @@ class PublishingPluginIntegrationTests {
   void snapshotDryRunSupportsConfigurationCache() throws IOException {
     write("settings.gradle", "rootProject.name = 'snapshot-cache'");
     write("build.gradle", """
-            plugins { id 'cn.taketoday.publishing'; id 'java' }
+            plugins { id 'cn.taketoday.maven-central-publishing'; id 'java' }
             version = '1.0-SNAPSHOT'
             publishing {
               publications { maven(MavenPublication) { from components.java } }
@@ -227,7 +227,7 @@ class PublishingPluginIntegrationTests {
   void rejectsUserDefinedSnapshotRepository() throws IOException {
     write("settings.gradle", "rootProject.name = 'reserved-snapshots'");
     write("build.gradle", """
-            plugins { id 'cn.taketoday.publishing' }
+            plugins { id 'cn.taketoday.maven-central-publishing' }
             version = '1.0-SNAPSHOT'
             publishing {
               repositories {
@@ -264,7 +264,7 @@ class PublishingPluginIntegrationTests {
             """);
     write("build.gradle", """
             plugins {
-              id 'cn.taketoday.publishing'
+              id 'cn.taketoday.maven-central-publishing'
               id 'java'
             }
             allprojects {
@@ -318,8 +318,8 @@ class PublishingPluginIntegrationTests {
   void rejectsPluginAppliedToSubproject() throws IOException {
     write("settings.gradle", "include 'library'");
     write("build.gradle", """
-            plugins { id 'cn.taketoday.publishing' }
-            project(':library') { apply plugin: 'cn.taketoday.publishing' }
+            plugins { id 'cn.taketoday.maven-central-publishing' }
+            project(':library') { apply plugin: 'cn.taketoday.maven-central-publishing' }
             """);
     Files.createDirectories(directory.resolve("library"));
 
@@ -329,7 +329,7 @@ class PublishingPluginIntegrationTests {
             .withArguments("help")
             .buildAndFail();
 
-    assertThat(result.getOutput()).contains("Apply 'cn.taketoday.publishing' only to the root project");
+    assertThat(result.getOutput()).contains("Apply 'cn.taketoday.maven-central-publishing' only to the root project");
   }
 
   @Test
@@ -337,7 +337,7 @@ class PublishingPluginIntegrationTests {
     write("settings.gradle", "include 'library'");
     Files.createDirectories(directory.resolve("library"));
     write("build.gradle", """
-            plugins { id 'cn.taketoday.publishing' }
+            plugins { id 'cn.taketoday.maven-central-publishing' }
             project(':library') {
               apply plugin: 'maven-publish'
               publishing {
@@ -367,7 +367,7 @@ class PublishingPluginIntegrationTests {
     write("build.gradle", """
             plugins {
               id 'maven-publish'
-              id 'cn.taketoday.publishing' apply false
+              id 'cn.taketoday.maven-central-publishing' apply false
             }
             publishing {
               repositories {
@@ -377,7 +377,7 @@ class PublishingPluginIntegrationTests {
                 }
               }
             }
-            apply plugin: 'cn.taketoday.publishing'
+            apply plugin: 'cn.taketoday.maven-central-publishing'
             """);
 
     BuildResult result = GradleRunner.create()
@@ -395,7 +395,7 @@ class PublishingPluginIntegrationTests {
     Files.createDirectories(directory.resolve("library"));
     for (String format : new String[] { "ZIP", "TAR_GZ" }) {
       write("build.gradle", """
-              plugins { id 'cn.taketoday.publishing' }
+              plugins { id 'cn.taketoday.maven-central-publishing' }
               mavenCentral {
                 bundle { format = cn.taketoday.publishing.BundleFormat.%s }
                 credentials = providers.provider { throw new GradleException('Credentials must not be resolved for bundling') }
@@ -429,7 +429,7 @@ class PublishingPluginIntegrationTests {
     write("settings.gradle", "rootProject.name = 'selective'; include 'library'");
     Files.createDirectories(directory.resolve("library"));
     write("build.gradle", """
-            plugins { id 'cn.taketoday.publishing'; id 'java' }
+            plugins { id 'cn.taketoday.maven-central-publishing'; id 'java' }
             group = 'example'
             version = '1.0'
             publishing {

@@ -58,9 +58,9 @@ import static org.gradle.api.publish.plugins.PublishingPlugin.PUBLISH_TASK_GROUP
  * @author <a href="https://github.com/TAKETODAY">海子 Yang</a>
  * @since 0.0.1
  */
-public class PublishingPlugin implements Plugin<Project> {
+public class MavenCentralPublishingPlugin implements Plugin<Project> {
 
-  private static final Logger log = Logging.getLogger(PublishingPlugin.class);
+  private static final Logger log = Logging.getLogger(MavenCentralPublishingPlugin.class);
 
   private static final String STAGING_REPOSITORY_NAME = "mavenCentralStaging";
 
@@ -90,16 +90,16 @@ public class PublishingPlugin implements Plugin<Project> {
   /**
    * Creates a Maven Central publishing plugin.
    */
-  public PublishingPlugin() {
+  public MavenCentralPublishingPlugin() {
   }
 
   @Override
   public void apply(Project project) {
     if (project != project.getRootProject()) {
-      throw new GradleException("Apply 'cn.taketoday.publishing' only to the root project; "
+      throw new GradleException("Apply 'cn.taketoday.maven-central-publishing' only to the root project; "
               + "apply 'maven-publish' to subprojects for aggregated publishing.");
     }
-    log.debug("Applying cn.taketoday.publishing to project '{}'", project.getName());
+    log.debug("Applying cn.taketoday.maven-central-publishing to project '{}'", project.getName());
     project.getPluginManager().apply(SigningPlugin.class);
     project.getPluginManager().apply(MavenPublishPlugin.class);
     Provider<Directory> outputDirectory = project.getLayout().getBuildDirectory().dir("publishing");
@@ -163,7 +163,7 @@ public class PublishingPlugin implements Plugin<Project> {
     PublishingExtension publishing = project.getExtensions().getByType(PublishingExtension.class);
     if (publishing.getRepositories().findByName(STAGING_REPOSITORY_NAME) != null) {
       throw new GradleException("Repository '" + STAGING_REPOSITORY_NAME + "' in project '"
-              + project.getPath() + "' is reserved for 'cn.taketoday.publishing' and must not be configured by users.");
+              + project.getPath() + "' is reserved for 'cn.taketoday.maven-central-publishing' and must not be configured by users.");
     }
     var stagingRepository = publishing.getRepositories().maven(repository -> {
       repository.setName(STAGING_REPOSITORY_NAME);
@@ -172,7 +172,7 @@ public class PublishingPlugin implements Plugin<Project> {
     project.getGradle().projectsEvaluated(gradle -> {
       if (!stagingRepository.getUrl().equals(project.uri(stagingRepositoryDirectory))) {
         throw new GradleException("Repository '" + STAGING_REPOSITORY_NAME
-                + "' is managed by 'cn.taketoday.publishing'; its URL must not be changed.");
+                + "' is managed by 'cn.taketoday.maven-central-publishing'; its URL must not be changed.");
       }
     });
   }
@@ -355,7 +355,7 @@ public class PublishingPlugin implements Plugin<Project> {
     PublishingExtension publishing = project.getExtensions().getByType(PublishingExtension.class);
     if (publishing.getRepositories().findByName(SNAPSHOT_REPOSITORY_NAME) != null) {
       throw new GradleException("Repository '" + SNAPSHOT_REPOSITORY_NAME + "' in project '"
-              + project.getPath() + "' is reserved for 'cn.taketoday.publishing' and must not be configured by users.");
+              + project.getPath() + "' is reserved for 'cn.taketoday.maven-central-publishing' and must not be configured by users.");
     }
     publishing.getRepositories().maven(repository -> {
       repository.setName(SNAPSHOT_REPOSITORY_NAME);

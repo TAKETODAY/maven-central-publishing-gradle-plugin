@@ -3,7 +3,7 @@ import cn.taketoday.publishing.PublishingType
 
 plugins {
   id 'com.gradle.plugin-publish' version '2.2.1'
-  id "cn.taketoday.publishing"
+  id "cn.taketoday.maven-central-publishing"
 }
 
 apply plugin: "java"
@@ -52,11 +52,11 @@ gradlePlugin {
   vcsUrl = "https://github.com/TAKETODAY/gradle-publishing-plugin"
   plugins {
     create('publishingPlugin') {
-      id = "cn.taketoday.publishing"
+      id = "cn.taketoday.maven-central-publishing"
       tags = ['maven-central', 'maven-central-portal', 'publishing', 'snapshots']
-      displayName = "Gradle Publishing Plugin"
-      description = "Gradle Publishing Plugin"
-      implementationClass = "cn.taketoday.publishing.PublishingPlugin"
+      displayName = "Maven Central Publishing Plugin"
+      description = "Maven Central Publishing Plugin"
+      implementationClass = "cn.taketoday.publishing.MavenCentralPublishingPlugin"
     }
   }
 }

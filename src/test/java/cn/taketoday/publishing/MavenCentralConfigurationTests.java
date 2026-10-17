@@ -50,11 +50,11 @@ class MavenCentralConfigurationTests {
   @Test
   void taskUsesSharedExtensionAsOnlyConfiguration() {
     Project project = ProjectBuilder.builder().withProjectDir(directory.toFile()).build();
-    project.getPluginManager().apply(PublishingPlugin.class);
+    project.getPluginManager().apply(MavenCentralPublishingPlugin.class);
     project.setVersion("1.2.3");
     var extension = project.getExtensions().getByType(MavenCentralExtension.class);
     ((ProjectInternal) project).evaluate();
-    new PublishingPlugin().configurePublishing(project, extension);
+    new MavenCentralPublishingPlugin().configurePublishing(project, extension);
     var task = (MavenCentralUploadTask) project.getTasks().getByName("uploadMavenCentralBundle");
     project.setGroup("example");
 

@@ -25,8 +25,8 @@ sourceSets.main.java.srcDir('../src/main/java')
 gradlePlugin {
   plugins {
     publishingPlugin {
-      id = 'cn.taketoday.publishing'
-      implementationClass = 'cn.taketoday.publishing.PublishingPlugin'
+      id = 'cn.taketoday.maven-central-publishing'
+      implementationClass = 'cn.taketoday.publishing.MavenCentralPublishingPlugin'
     }
   }
 }

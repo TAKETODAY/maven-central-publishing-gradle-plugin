@@ -40,7 +40,7 @@ import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class PublishingPluginTests {
+class MavenCentralPublishingPluginTests {
 
   @TempDir
   Path directory;
@@ -53,10 +53,10 @@ class PublishingPluginTests {
   void setUp() throws Exception {
     directory = directory.toRealPath();
     project = ProjectBuilder.builder().withProjectDir(directory.toFile()).build();
-    project.getPluginManager().apply(PublishingPlugin.class);
+    project.getPluginManager().apply(MavenCentralPublishingPlugin.class);
     extension = project.getExtensions().getByType(MavenCentralExtension.class);
     ((ProjectInternal) project).evaluate();
-    new PublishingPlugin().configurePublishing(project, extension);
+    new MavenCentralPublishingPlugin().configurePublishing(project, extension);
   }
 
   @Test
@@ -163,7 +163,7 @@ class PublishingPluginTests {
   void snapshotVersionRegistersSnapshotsRepositoryAndRoutesPublishing() {
     Project snapshotProject = ProjectBuilder.builder().withProjectDir(directory.toFile()).build();
     snapshotProject.setVersion("1.0-SNAPSHOT");
-    snapshotProject.getPluginManager().apply(PublishingPlugin.class);
+    snapshotProject.getPluginManager().apply(MavenCentralPublishingPlugin.class);
     MavenCentralExtension snapshotExtension = snapshotProject.getExtensions().getByType(MavenCentralExtension.class);
     snapshotExtension.credentials(credentials -> {
       credentials.setUsername("test-user");
@@ -172,7 +172,7 @@ class PublishingPluginTests {
     var publishing = snapshotProject.getExtensions().getByType(PublishingExtension.class);
     publishing.getPublications().create("library", MavenPublication.class);
     ((ProjectInternal) snapshotProject).evaluate();
-    new PublishingPlugin().configurePublishing(snapshotProject, snapshotExtension);
+    new MavenCentralPublishingPlugin().configurePublishing(snapshotProject, snapshotExtension);
 
     var repository = (MavenArtifactRepository) publishing.getRepositories().getByName("mavenCentralSnapshots");
     assertThat(repository.getUrl()).isEqualTo(URI.create("https://central.sonatype.com/repository/maven-snapshots/"));

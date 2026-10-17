@@ -194,7 +194,7 @@ ZIP/TAR.GZ 归档任务额外通过 `mustRunAfter` 等待已加入任务图的�
 
 ```groovy
 plugins {
-  id 'cn.taketoday.publishing' version '0.0.5'
+  id 'cn.taketoday.maven-central-publishing' version '0.0.5'
 }
 ```
 
@@ -221,7 +221,7 @@ publishing {
 | 命令                    | 可见内容                                                         |
 |-------------------------|------------------------------------------------------------------|
 | 默认                    | 仅 Gradle 常规输出                                               |
-| `./gradlew --info ...`  | `INFO`：staging 仓库位置、聚合的子模块发布任务数量                       |
+| `./gradlew --info ...`  | `INFO`：staging 仓库位置、聚合的子模块发布任务数量               |
 | `./gradlew --debug ...` | `DEBUG`：每个子模块的聚合/跳过细节及原因、插件应用与任务注册情况 |
 
 例如：
@@ -238,3 +238,14 @@ Aggregated 90 subproject publishing task(s) into root project 'infra' Maven Cent
 ```
 
 `--debug` 时还会逐行列出每个被聚合的子模块，便于排查漏发问题。
+
+## 致谢
+
+本项目借鉴了 [SgtSilvio/gradle-maven-central-publishing](https://github.com/SgtSilvio/gradle-maven-central-publishing) 的发布流程与设计思路，
+并结合实际场景做了调整与扩展（如根项目聚合发布、SNAPSHOT 直接发布到快照仓库等）。
+
+同时感谢：[JetBrains](https://www.jetbrains.com/?from=https://github.com/TAKETODAY/today-infrastructure) 提供免费 IDE 开源授权
+
+## 📄 开源协议
+
+本项目使用 [Apache License 2.0](LICENSE) 开源。
