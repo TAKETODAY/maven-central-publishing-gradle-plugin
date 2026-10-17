@@ -1,4 +1,4 @@
-# Gradle Publishing Plugin
+# Maven Central Publishing Gradle Plugin
 
 ## 构建与测试
 
@@ -65,7 +65,7 @@
 
 ### Issue tracker
 
-工单与规格使用 `TAKETODAY/gradle-publishing-plugin` 的 GitHub Issues，通过 `gh` CLI 操作。详见 `docs/agents/issue-tracker.md`。
+工单与规格使用 `TAKETODAY/maven-central-publishing-gradle-plugin` 的 GitHub Issues，通过 `gh` CLI 操作。详见 `docs/agents/issue-tracker.md`。
 
 ### Triage labels
 

@@ -12,7 +12,7 @@ apply plugin: "maven-publish"
 apply plugin: "java-gradle-plugin"
 
 group = 'cn.taketoday'
-description = 'Gradle Publishing Plugin'
+description = 'Maven Central Publishing Gradle Plugin'
 
 ext {
   isSnapshot = version.endsWith('SNAPSHOT')
@@ -48,10 +48,10 @@ tasks.named('test') {
 
 
 gradlePlugin {
-  website = "https://github.com/TAKETODAY/gradle-publishing-plugin"
-  vcsUrl = "https://github.com/TAKETODAY/gradle-publishing-plugin"
+  website = "https://github.com/TAKETODAY/maven-central-publishing-gradle-plugin"
+  vcsUrl = "https://github.com/TAKETODAY/maven-central-publishing-gradle-plugin"
   plugins {
-    create('publishingPlugin') {
+    create('mavenCentralPublishingPlugin') {
       id = "cn.taketoday.maven-central-publishing"
       tags = ['maven-central', 'maven-central-portal', 'publishing', 'snapshots']
       displayName = "Maven Central Publishing Plugin"
@@ -62,30 +62,28 @@ gradlePlugin {
 }
 
 
-publishing {
-  publications.withType(MavenPublication).configureEach {
-    pom {
-      name = 'Gradle Publishing Plugin'
-      description = project.description
-      url = 'https://github.com/TAKETODAY/gradle-publishing-plugin'
-      licenses {
-        license {
-          name = 'Apache License, Version 2.0'
-          url = 'https://www.apache.org/licenses/LICENSE-2.0.txt'
-        }
+publishing.publications.withType(MavenPublication).configureEach {
+  pom {
+    name = 'Maven Central Publishing Gradle Plugin'
+    description = project.description
+    url = 'https://github.com/TAKETODAY/maven-central-publishing-gradle-plugin'
+    licenses {
+      license {
+        name = 'Apache License, Version 2.0'
+        url = 'https://www.apache.org/licenses/LICENSE-2.0.txt'
       }
-      developers {
-        developer {
-          id = 'TAKETODAY'
-          name = '海子 Yang'
-          url = 'https://github.com/TAKETODAY'
-        }
+    }
+    developers {
+      developer {
+        id = 'TAKETODAY'
+        name = '海子 Yang'
+        url = 'https://github.com/TAKETODAY'
       }
-      scm {
-        connection = 'scm:git:https://github.com/TAKETODAY/gradle-publishing-plugin.git'
-        developerConnection = 'scm:git:ssh://git@github.com/TAKETODAY/gradle-publishing-plugin.git'
-        url = 'https://github.com/TAKETODAY/gradle-publishing-plugin'
-      }
+    }
+    scm {
+      connection = 'scm:git:https://github.com/TAKETODAY/maven-central-publishing-gradle-plugin.git'
+      developerConnection = 'scm:git:ssh://git@github.com/TAKETODAY/maven-central-publishing-gradle-plugin.git'
+      url = 'https://github.com/TAKETODAY/maven-central-publishing-gradle-plugin'
     }
   }
 }

@@ -1,9 +1,9 @@
-# Gradle Publishing Plugin
+# Maven Central Publishing Gradle Plugin
 
 ![Java17](https://img.shields.io/badge/JDK-17+-success.svg)
-[![Apache License 2.0](https://img.shields.io/github/license/TAKETODAY/gradle-publishing-plugin?color=blue)](./LICENSE)
-[![Release](https://github.com/TAKETODAY/gradle-publishing-plugin/actions/workflows/release.yaml/badge.svg)](https://github.com/TAKETODAY/gradle-publishing-plugin/actions/workflows/release.yaml)
-[![CI](https://github.com/TAKETODAY/gradle-publishing-plugin/actions/workflows/ci.yaml/badge.svg)](https://github.com/TAKETODAY/gradle-publishing-plugin/actions/workflows/ci.yaml)
+[![Apache License 2.0](https://img.shields.io/github/license/TAKETODAY/maven-central-publishing-gradle-plugin?color=blue)](./LICENSE)
+[![Release](https://github.com/TAKETODAY/maven-central-publishing-gradle-plugin/actions/workflows/release.yaml/badge.svg)](https://github.com/TAKETODAY/maven-central-publishing-gradle-plugin/actions/workflows/release.yaml)
+[![CI](https://github.com/TAKETODAY/maven-central-publishing-gradle-plugin/actions/workflows/ci.yaml/badge.svg)](https://github.com/TAKETODAY/maven-central-publishing-gradle-plugin/actions/workflows/ci.yaml)
 
 ### 发布配置
 

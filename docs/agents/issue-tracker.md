@@ -1,6 +1,6 @@
 # 问题跟踪器：GitHub
 
-本仓库的工单与规格存放在 `TAKETODAY/gradle-publishing-plugin` 的 GitHub Issues。
+本仓库的工单与规格存放在 `TAKETODAY/maven-central-publishing-gradle-plugin` 的 GitHub Issues。
 所有操作使用 `gh` CLI，在仓库内执行时由 Git 远端推断目标仓库。
 
 ## 常用操作
@@ -26,12 +26,12 @@
   `gh` 2.94+ 可使用 `gh issue create --parent <parent> ...`，
   或 `gh issue edit <parent> --add-sub-issue <child>`。
 - 旧版 CLI 可调用：
-  `gh api --method POST repos/TAKETODAY/gradle-publishing-plugin/issues/<parent>/sub_issues -F sub_issue_id=<child-db-id>`。
+  `gh api --method POST repos/TAKETODAY/maven-central-publishing-gradle-plugin/issues/<parent>/sub_issues -F sub_issue_id=<child-db-id>`。
 - 无法使用子工单时，在父工单中维护任务列表，并在子工单正文顶部写 `Part of #<parent>`。
 - 阻塞关系优先使用 GitHub 原生依赖：
-  `gh api --method POST repos/TAKETODAY/gradle-publishing-plugin/issues/<child>/dependencies/blocked_by -F issue_id=<blocker-db-id>`。
+  `gh api --method POST repos/TAKETODAY/maven-central-publishing-gradle-plugin/issues/<child>/dependencies/blocked_by -F issue_id=<blocker-db-id>`。
 - 数据库 ID 通过
-  `gh api repos/TAKETODAY/gradle-publishing-plugin/issues/<number> --jq .id`
+  `gh api repos/TAKETODAY/maven-central-publishing-gradle-plugin/issues/<number> --jq .id`
   获取；它不是工单编号或 `node_id`。
 - 无法使用原生依赖时，在子工单正文顶部写 `Blocked by: #<number>`。
   所有阻塞工单关闭后，该工单才可执行。

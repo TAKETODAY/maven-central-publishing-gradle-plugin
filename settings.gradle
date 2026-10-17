@@ -21,4 +21,4 @@ gradleEnterprise {
   }
 }
 
-rootProject.name = 'gradle-publishing-plugin'
+rootProject.name = 'maven-central-publishing-gradle-plugin'
