@@ -19,6 +19,7 @@ package cn.taketoday.publishing;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.artifacts.repositories.MavenArtifactRepository;
+import org.gradle.api.internal.project.ProjectInternal;
 import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.api.tasks.Delete;
@@ -33,6 +34,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -153,6 +155,48 @@ class PublishingPluginTests {
 
     assertThat(staging).doesNotExist();
     assertThat(bundle).hasContent("previous bundle");
+  }
+
+  @Test
+  void snapshotVersionRegistersSnapshotsRepositoryAndRoutesPublishing() {
+    project.setVersion("1.0-SNAPSHOT");
+    extension.credentials(credentials -> {
+      credentials.setUsername("test-user");
+      credentials.setPassword("test-password");
+    });
+    var publishing = project.getExtensions().getByType(PublishingExtension.class);
+    publishing.getPublications().create("library", MavenPublication.class);
+    new PublishingPlugin().routeSnapshotPublishing(project, extension);
+
+    var repository = (MavenArtifactRepository) publishing.getRepositories().getByName("mavenCentralSnapshots");
+    assertThat(repository.getUrl()).isEqualTo(URI.create("https://central.sonatype.com/repository/maven-snapshots/"));
+    Task upload = task("uploadMavenCentralBundle");
+    Task publishAll = task("publishToMavenCentral");
+    assertThat(publishAll.getTaskDependencies().getDependencies(publishAll))
+            .extracting(Task::getName)
+            .contains("publishAllPublicationsToMavenCentralSnapshotsRepository")
+            .doesNotContain(upload.getName(), "publishAllPublicationsToMavenCentralStagingRepository");
+    Task publish = task("publishLibraryPublicationToMavenCentral");
+    assertThat(publish.getTaskDependencies().getDependencies(publish))
+            .extracting(Task::getName)
+            .contains("publishLibraryPublicationToMavenCentralSnapshotsRepository")
+            .doesNotContain(upload.getName(), "publishLibraryPublicationToMavenCentralStagingRepository");
+  }
+
+  @Test
+  void releaseVersionKeepsBundleUploadPublishing() {
+    project.setVersion("1.0");
+    var publishing = project.getExtensions().getByType(PublishingExtension.class);
+    publishing.getPublications().create("library", MavenPublication.class);
+    ((ProjectInternal) project).evaluate();
+
+    assertThat(publishing.getRepositories().findByName("mavenCentralSnapshots")).isNull();
+    Task upload = task("uploadMavenCentralBundle");
+    Task publishAll = task("publishToMavenCentral");
+    assertThat(publishAll.getTaskDependencies().getDependencies(publishAll))
+            .extracting(Task::getName)
+            .contains(upload.getName(), "publishAllPublicationsToMavenCentralStagingRepository")
+            .doesNotContain("publishAllPublicationsToMavenCentralSnapshotsRepository");
   }
 
   private Task task(String name) {

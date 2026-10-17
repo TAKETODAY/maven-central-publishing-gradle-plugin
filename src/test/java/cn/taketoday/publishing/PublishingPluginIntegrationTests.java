@@ -168,6 +168,79 @@ class PublishingPluginIntegrationTests {
             .contains(":uploadMavenCentralBundle");
   }
 
+  @Test
+  void snapshotVersionPublishesToSnapshotsRepositoryInsteadOfBundleUpload() throws IOException {
+    write("settings.gradle", """
+            rootProject.name = 'snapshots'
+            include 'library'
+            """);
+    write("build.gradle", """
+            plugins { id 'cn.taketoday.publishing' }
+            version = '1.0-SNAPSHOT'
+            project(':library') {
+              apply plugin: 'java'
+              apply plugin: 'maven-publish'
+              group = 'com.example'
+              version = '1.0-SNAPSHOT'
+              publishing {
+                publications { maven(MavenPublication) { from components.java } }
+              }
+            }
+            """);
+    Files.createDirectories(directory.resolve("library"));
+
+    BuildResult result = run("publishToMavenCentral", "--dry-run");
+    String output = result.getOutput();
+    assertThat(output)
+            .contains(":library:publishAllPublicationsToMavenCentralSnapshotsRepository")
+            .contains(":publishAllPublicationsToMavenCentralSnapshotsRepository")
+            .doesNotContain(":uploadMavenCentralBundle")
+            .doesNotContain(":mavenCentralBundle")
+            .doesNotContain(":publishAllPublicationsToMavenCentralStagingRepository");
+  }
+
+  @Test
+  void snapshotDryRunSupportsConfigurationCache() throws IOException {
+    write("settings.gradle", "rootProject.name = 'snapshot-cache'");
+    write("build.gradle", """
+            plugins { id 'cn.taketoday.publishing'; id 'java' }
+            version = '1.0-SNAPSHOT'
+            publishing {
+              publications { maven(MavenPublication) { from components.java } }
+            }
+            """);
+
+    BuildResult first = run("publishToMavenCentral", "--configuration-cache", "--dry-run");
+    assertThat(first.getOutput()).contains("Configuration cache entry stored");
+    BuildResult second = run("publishToMavenCentral", "--configuration-cache", "--dry-run");
+    assertThat(second.getOutput()).contains("Reusing configuration cache");
+  }
+
+  @Test
+  void rejectsUserDefinedSnapshotRepository() throws IOException {
+    write("settings.gradle", "rootProject.name = 'reserved-snapshots'");
+    write("build.gradle", """
+            plugins { id 'cn.taketoday.publishing' }
+            version = '1.0-SNAPSHOT'
+            publishing {
+              repositories {
+                maven {
+                  name = 'mavenCentralSnapshots'
+                  url = 'https://central.sonatype.com/repository/maven-snapshots/'
+                }
+              }
+            }
+            """);
+
+    BuildResult result = GradleRunner.create()
+            .withProjectDir(directory.toFile())
+            .withPluginClasspath()
+            .withArguments("help")
+            .buildAndFail();
+
+    assertThat(result.getOutput()).contains("mavenCentralSnapshots", "is reserved for");
+  }
+
   private BuildResult run(String... arguments) {
     return GradleRunner.create()
             .withProjectDir(directory.toFile())

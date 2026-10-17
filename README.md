@@ -74,6 +74,26 @@ Maven Central 当前支持 ZIP、TAR.GZ 等常见归档格式。`archiveFileName
 Sonatype API 省略此参数时默认 `USER_MANAGED`；本插件为兼容现有行为默认自动发布。
 参考：[官方 Publisher API 文档](https://central.sonatype.org/publish/publish-portal-api/)。
 
+#### 快照发布（SNAPSHOT）
+
+当（根）项目版本以 `-SNAPSHOT` 结尾时（例如 `1.0.0-SNAPSHOT`），Maven Central 的快照发布
+不走 Portal bundle 上传，而是通过兼容 `mvn deploy` 的接口直接部署。插件在项目评估完成后
+自动切换发布路径：
+
+- 在根项目与所有应用 `maven-publish` 的子模块上注册保留仓库 `mavenCentralSnapshots`，
+  指向 `https://central.sonatype.com/repository/maven-snapshots/`，凭据复用 `mavenCentral`
+  配置（Portal 用户令牌，基础认证）；
+- 将 `publishToMavenCentral` 与各 `publish<Publication>PublicationToMavenCentral`
+  指向对应快照仓库的发布任务，跳过暂存、打包与上传任务链（`mavenCentralStaging`、
+  `mavenCentralBundle`、`uploadMavenCentralBundle` 均不会执行）。
+
+前置条件：命名空间需先在 Central Portal 的 [Namespaces](https://central.sonatype.com/publishing/namespaces)
+页面启用 SNAPSHOTs（命名空间下拉菜单 → "Enable SNAPSHOTs"）。
+
+`-SNAPSHOT` 构件可被覆盖，且在一段时间后（当前为 90 天）被清理，与正式发布不可覆盖的语义不同。
+`mavenCentralSnapshots` 与 `mavenCentralStaging` 一样属于插件保留仓库名，不允许用户自行声明。
+参考：[Portal Snapshots 文档](https://central.sonatype.org/publish/publish-portal-snapshots/)。
+
 ### Maven Central Portal 凭据
 
 你需要为 Maven Central Portal 创建一个用户令牌：
@@ -120,6 +140,7 @@ mavenCentralPassword=<令牌密码>
 
 `mavenCentralStaging` 是插件保留仓库，由插件统一创建和配置。
 根项目和子模块都不允许自行声明同名仓库，即使指向相同目录也会在配置阶段报错。
+快照版本发布时，插件还会保留 `mavenCentralSnapshots` 仓库名，同样禁止自行声明。
 
 聚合在项目评估完成（`projectsEvaluated`）之后进行，因此不依赖子模块的配置顺序，
 `java-platform` 这类在根项目配置阶段尚未应用 `maven-publish` 的模块也会被正确纳入。
