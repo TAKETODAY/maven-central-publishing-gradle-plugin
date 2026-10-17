@@ -19,6 +19,7 @@ package cn.taketoday.publishing;
 import com.sun.net.httpserver.HttpServer;
 
 import org.gradle.api.Project;
+import org.gradle.api.internal.project.ProjectInternal;
 import org.gradle.testfixtures.ProjectBuilder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -51,8 +52,9 @@ class MavenCentralConfigurationTests {
     Project project = ProjectBuilder.builder().withProjectDir(directory.toFile()).build();
     project.getPluginManager().apply(PublishingPlugin.class);
     project.setVersion("1.2.3");
-    ((org.gradle.api.internal.project.ProjectInternal) project).evaluate();
     var extension = project.getExtensions().getByType(MavenCentralExtension.class);
+    ((ProjectInternal) project).evaluate();
+    new PublishingPlugin().configurePublishing(project, extension);
     var task = (MavenCentralUploadTask) project.getTasks().getByName("uploadMavenCentralBundle");
     project.setGroup("example");
 

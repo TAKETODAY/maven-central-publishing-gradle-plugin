@@ -54,8 +54,9 @@ class PublishingPluginTests {
     directory = directory.toRealPath();
     project = ProjectBuilder.builder().withProjectDir(directory.toFile()).build();
     project.getPluginManager().apply(PublishingPlugin.class);
-    ((ProjectInternal) project).evaluate();
     extension = project.getExtensions().getByType(MavenCentralExtension.class);
+    ((ProjectInternal) project).evaluate();
+    new PublishingPlugin().configurePublishing(project, extension);
   }
 
   @Test
@@ -171,22 +172,20 @@ class PublishingPluginTests {
     var publishing = snapshotProject.getExtensions().getByType(PublishingExtension.class);
     publishing.getPublications().create("library", MavenPublication.class);
     ((ProjectInternal) snapshotProject).evaluate();
+    new PublishingPlugin().configurePublishing(snapshotProject, snapshotExtension);
 
     var repository = (MavenArtifactRepository) publishing.getRepositories().getByName("mavenCentralSnapshots");
     assertThat(repository.getUrl()).isEqualTo(URI.create("https://central.sonatype.com/repository/maven-snapshots/"));
     assertThat(snapshotProject.getTasks().findByName("uploadMavenCentralBundle")).isNull();
     assertThat(snapshotProject.getTasks().findByName("mavenCentralBundle")).isNull();
     assertThat(snapshotProject.getTasks().findByName("mavenCentralStaging")).isNull();
+    assertThat(snapshotProject.getTasks().findByName("publishLibraryPublicationToMavenCentral")).isNull();
+    assertThat(snapshotProject.getTasks().findByName("publishLibraryPublicationToMavenCentralSnapshotsRepository")).isNotNull();
     Task publishAll = snapshotProject.getTasks().getByName("publishToMavenCentral");
     assertThat(publishAll.getTaskDependencies().getDependencies(publishAll))
             .extracting(Task::getName)
             .contains("publishAllPublicationsToMavenCentralSnapshotsRepository")
             .doesNotContain("uploadMavenCentralBundle", "publishAllPublicationsToMavenCentralStagingRepository");
-    Task publish = snapshotProject.getTasks().getByName("publishLibraryPublicationToMavenCentral");
-    assertThat(publish.getTaskDependencies().getDependencies(publish))
-            .extracting(Task::getName)
-            .contains("publishLibraryPublicationToMavenCentralSnapshotsRepository")
-            .doesNotContain("uploadMavenCentralBundle", "publishLibraryPublicationToMavenCentralStagingRepository");
   }
 
   @Test
