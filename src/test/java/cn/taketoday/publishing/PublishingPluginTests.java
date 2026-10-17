@@ -54,6 +54,7 @@ class PublishingPluginTests {
     directory = directory.toRealPath();
     project = ProjectBuilder.builder().withProjectDir(directory.toFile()).build();
     project.getPluginManager().apply(PublishingPlugin.class);
+    ((ProjectInternal) project).evaluate();
     extension = project.getExtensions().getByType(MavenCentralExtension.class);
   }
 
@@ -159,28 +160,33 @@ class PublishingPluginTests {
 
   @Test
   void snapshotVersionRegistersSnapshotsRepositoryAndRoutesPublishing() {
-    project.setVersion("1.0-SNAPSHOT");
-    extension.credentials(credentials -> {
+    Project snapshotProject = ProjectBuilder.builder().withProjectDir(directory.toFile()).build();
+    snapshotProject.setVersion("1.0-SNAPSHOT");
+    snapshotProject.getPluginManager().apply(PublishingPlugin.class);
+    MavenCentralExtension snapshotExtension = snapshotProject.getExtensions().getByType(MavenCentralExtension.class);
+    snapshotExtension.credentials(credentials -> {
       credentials.setUsername("test-user");
       credentials.setPassword("test-password");
     });
-    var publishing = project.getExtensions().getByType(PublishingExtension.class);
+    var publishing = snapshotProject.getExtensions().getByType(PublishingExtension.class);
     publishing.getPublications().create("library", MavenPublication.class);
-    new PublishingPlugin().routeSnapshotPublishing(project, extension);
+    ((ProjectInternal) snapshotProject).evaluate();
 
     var repository = (MavenArtifactRepository) publishing.getRepositories().getByName("mavenCentralSnapshots");
     assertThat(repository.getUrl()).isEqualTo(URI.create("https://central.sonatype.com/repository/maven-snapshots/"));
-    Task upload = task("uploadMavenCentralBundle");
-    Task publishAll = task("publishToMavenCentral");
+    assertThat(snapshotProject.getTasks().findByName("uploadMavenCentralBundle")).isNull();
+    assertThat(snapshotProject.getTasks().findByName("mavenCentralBundle")).isNull();
+    assertThat(snapshotProject.getTasks().findByName("mavenCentralStaging")).isNull();
+    Task publishAll = snapshotProject.getTasks().getByName("publishToMavenCentral");
     assertThat(publishAll.getTaskDependencies().getDependencies(publishAll))
             .extracting(Task::getName)
             .contains("publishAllPublicationsToMavenCentralSnapshotsRepository")
-            .doesNotContain(upload.getName(), "publishAllPublicationsToMavenCentralStagingRepository");
-    Task publish = task("publishLibraryPublicationToMavenCentral");
+            .doesNotContain("uploadMavenCentralBundle", "publishAllPublicationsToMavenCentralStagingRepository");
+    Task publish = snapshotProject.getTasks().getByName("publishLibraryPublicationToMavenCentral");
     assertThat(publish.getTaskDependencies().getDependencies(publish))
             .extracting(Task::getName)
             .contains("publishLibraryPublicationToMavenCentralSnapshotsRepository")
-            .doesNotContain(upload.getName(), "publishLibraryPublicationToMavenCentralStagingRepository");
+            .doesNotContain("uploadMavenCentralBundle", "publishLibraryPublicationToMavenCentralStagingRepository");
   }
 
   @Test

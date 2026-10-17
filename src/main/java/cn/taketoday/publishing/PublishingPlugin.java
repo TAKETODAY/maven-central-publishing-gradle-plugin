@@ -44,7 +44,6 @@ import org.gradle.plugins.signing.SigningPlugin;
 
 import java.io.Serial;
 import java.io.Serializable;
-import java.util.Collections;
 
 import static infra.util.StringUtils.capitalize;
 import static org.gradle.api.publish.plugins.PublishingPlugin.PUBLISH_LIFECYCLE_TASK_NAME;
@@ -81,6 +80,13 @@ public class PublishingPlugin implements Plugin<Project> {
 
   private static final String SNAPSHOT_VERSION_SUFFIX = "-SNAPSHOT";
 
+  // publishAllPublicationsToMavenCentralStagingRepository task
+  private static final String publishAllPublicationsToMavenCentralStagingRepository =
+          "publishAllPublicationsTo" + capitalize(STAGING_REPOSITORY_NAME) + "Repository";
+
+  private static final String publishAllPublicationsToMavenCentralSnapshotsRepository =
+          "publishAllPublicationsTo" + capitalize(SNAPSHOT_REPOSITORY_NAME) + "Repository";
+
   /**
    * Creates a Maven Central publishing plugin.
    */
@@ -93,7 +99,7 @@ public class PublishingPlugin implements Plugin<Project> {
       throw new GradleException("Apply 'cn.taketoday.publishing' only to the root project; "
               + "apply 'maven-publish' to subprojects for aggregated publishing.");
     }
-    log.debug("Applying cn.taketoday.publishing to project '{}'", project.getPath());
+    log.debug("Applying cn.taketoday.publishing to project '{}'", project.getName());
     project.getPluginManager().apply(SigningPlugin.class);
     project.getPluginManager().apply(MavenPublishPlugin.class);
     Provider<Directory> outputDirectory = project.getLayout().getBuildDirectory().dir("publishing");
@@ -104,6 +110,19 @@ public class PublishingPlugin implements Plugin<Project> {
     extension.getDeploymentName().convention(project.provider(() -> project.getGroup() + ":" + project.getName() + ":" + project.getVersion()));
     extension.getBundle().getDestinationDirectory().convention(outputDirectory);
 
+    project.getGradle().projectsEvaluated(gradle -> {
+      if (isSnapshotVersion(project)) {
+        registerSnapshotPublishing(project, extension);
+      }
+      else {
+        registerReleasePublishing(project, stagingRepositoryDirectory, outputDirectory, extension);
+      }
+    });
+    log.debug("Maven Central publishing tasks registered for project '{}'", project.getPath());
+  }
+
+  private void registerReleasePublishing(Project project, Provider<Directory> stagingRepositoryDirectory,
+          Provider<Directory> outputDirectory, MavenCentralExtension extension) {
     registerStagingRepository(project, stagingRepositoryDirectory);
     log.info("Maven Central publishing configured for project '{}', staging at '{}'",
             project.getPath(), stagingRepositoryDirectory.get());
@@ -113,11 +132,9 @@ public class PublishingPlugin implements Plugin<Project> {
     var cleanStagingRepositoryTask = registerCleanStagingRepositoryTask(project, stagingRepositoryDirectory);
 
     configureRootPublications(project, uploadBundleTask, cleanStagingRepositoryTask);
-    aggregateSubprojects(project, stagingRepositoryDirectory, uploadBundleTask, cleanStagingRepositoryTask);
-    TaskProvider<?> publishAllTask = registerPublishToMavenCentralTask(project, uploadBundleTask);
-    project.getTasks().named(PUBLISH_LIFECYCLE_TASK_NAME).configure(task -> task.dependsOn(publishAllTask));
-    configureSnapshotPublishing(project, extension);
-    log.debug("Maven Central publishing tasks registered for project '{}'", project.getPath());
+    aggregateSubprojectsReleasePublishing(project, stagingRepositoryDirectory, uploadBundleTask, cleanStagingRepositoryTask);
+    TaskProvider<?> publishToMavenCentral = registerPublishToMavenCentralTask(project, uploadBundleTask);
+    project.getTasks().named(PUBLISH_LIFECYCLE_TASK_NAME).configure(task -> task.dependsOn(publishToMavenCentral));
   }
 
   private void configureRootPublications(Project project, TaskProvider<MavenCentralUploadTask> uploadBundleTask,
@@ -133,7 +150,10 @@ public class PublishingPlugin implements Plugin<Project> {
       var publishToStagingRepositoryTask = getPublishToStagingRepositoryTask(publicationProject, publicationName);
       publishToStagingRepositoryTask.configure(task -> task.dependsOn(cleanStagingRepositoryTask));
       configureArchiveOrdering(publicationProject, publishToStagingRepositoryTask);
-      registerPublishTask(publicationProject, publicationName, publishToStagingRepositoryTask, uploadBundleTask);
+      registerMavenCentralPublicationTask(publicationProject, publicationName, task -> {
+        task.dependsOn(publishToStagingRepositoryTask);
+        task.dependsOn(uploadBundleTask);
+      });
     });
   }
 
@@ -161,39 +181,36 @@ public class PublishingPlugin implements Plugin<Project> {
    * <p>The plugin owns the {@code mavenCentralStaging} repository and configures
    * it automatically for every subproject applying {@code maven-publish}.</p>
    */
-  private void aggregateSubprojects(Project rootProject, Provider<Directory> stagingRepositoryDirectory,
+  private void aggregateSubprojectsReleasePublishing(Project rootProject, Provider<Directory> stagingRepositoryDirectory,
           TaskProvider<MavenCentralUploadTask> uploadBundleTask, TaskProvider<Delete> cleanStagingRepositoryTask) {
     if (rootProject.getSubprojects().isEmpty()) {
       return;
     }
-    rootProject.getGradle().projectsEvaluated(gradle -> {
-      String publishAllToStagingTaskName = "publishAllPublicationsTo" + capitalize(STAGING_REPOSITORY_NAME) + "Repository";
-      TaskProvider<?> publishAllStagingTask = rootProject.getTasks().named(publishAllToStagingTaskName);
-      int aggregatedPublishingTasks = 0;
-      for (Project subproject : rootProject.getSubprojects()) {
-        PublishingExtension publishingExtension = subproject.getExtensions().findByType(PublishingExtension.class);
-        if (publishingExtension == null) {
-          log.debug("Subproject '{}' does not apply 'maven-publish', skipped from aggregation",
-                  subproject.getPath());
-          continue;
-        }
-        registerStagingRepository(subproject, stagingRepositoryDirectory);
-        log.debug("Auto-configured '{}' repository for subproject '{}'", STAGING_REPOSITORY_NAME, subproject.getPath());
-        Task stagingTask = subproject.getTasks().findByName(publishAllToStagingTaskName);
-        if (stagingTask == null) {
-          log.debug("Subproject '{}' has no '{}' task, skipped from aggregation",
-                  subproject.getPath(), publishAllToStagingTaskName);
-          continue;
-        }
-        configurePublications(subproject, publishingExtension, uploadBundleTask, cleanStagingRepositoryTask);
-        publishAllStagingTask.configure(task -> task.dependsOn(stagingTask));
-        aggregatedPublishingTasks++;
-        log.debug("Aggregated subproject '{}' publishing task '{}' into project '{}' publishing",
-                subproject.getPath(), stagingTask.getPath(), rootProject.getPath());
+    TaskProvider<?> publishAllStagingTask = rootProject.getTasks().named(publishAllPublicationsToMavenCentralStagingRepository);
+    int aggregatedPublishingTasks = 0;
+    for (Project subproject : rootProject.getSubprojects()) {
+      PublishingExtension publishingExtension = subproject.getExtensions().findByType(PublishingExtension.class);
+      if (publishingExtension == null) {
+        log.debug("Subproject '{}' does not apply 'maven-publish', skipped from aggregation",
+                subproject.getPath());
+        continue;
       }
-      log.info("Aggregated {} subproject publishing task(s) into root project '{}' Maven Central publishing",
-              aggregatedPublishingTasks, rootProject.getName());
-    });
+      registerStagingRepository(subproject, stagingRepositoryDirectory);
+      log.debug("Auto-configured '{}' repository for subproject '{}'", STAGING_REPOSITORY_NAME, subproject.getPath());
+      Task stagingTask = subproject.getTasks().findByName(publishAllPublicationsToMavenCentralStagingRepository);
+      if (stagingTask == null) {
+        log.debug("Subproject '{}' has no '{}' task, skipped from aggregation",
+                subproject.getPath(), publishAllPublicationsToMavenCentralStagingRepository);
+        continue;
+      }
+      configurePublications(subproject, publishingExtension, uploadBundleTask, cleanStagingRepositoryTask);
+      publishAllStagingTask.configure(task -> task.dependsOn(stagingTask));
+      aggregatedPublishingTasks++;
+      log.debug("Aggregated subproject '{}' publishing task '{}' into project '{}' publishing",
+              subproject.getPath(), stagingTask.getPath(), rootProject.getPath());
+    }
+    log.info("Aggregated {} subproject publishing task(s) into root project '{}' Maven Central publishing",
+            aggregatedPublishingTasks, rootProject.getName());
   }
 
   private TaskProvider<Delete> registerCleanStagingRepositoryTask(Project project, Provider<Directory> stagingRepositoryDirectory) {
@@ -256,13 +273,11 @@ public class PublishingPlugin implements Plugin<Project> {
     return project.getTasks().named("publish" + capitalize(publicationName) + "PublicationTo" + capitalize(STAGING_REPOSITORY_NAME) + "Repository");
   }
 
-  private TaskProvider<?> registerPublishTask(Project project, String publicationName,
-          TaskProvider<?> publishToStagingRepositoryTask, TaskProvider<MavenCentralUploadTask> uploadBundleTask) {
-    return project.getTasks().register("publish" + capitalize(publicationName) + "PublicationToMavenCentral", task -> {
+  private void registerMavenCentralPublicationTask(Project project, String publicationName, Action<Task> dependencyConfig) {
+    project.getTasks().register("publish" + capitalize(publicationName) + "PublicationToMavenCentral", task -> {
       task.setGroup(PUBLISH_TASK_GROUP);
       task.setDescription("Publishes Maven publication '" + publicationName + "' to Maven Central.");
-      task.dependsOn(publishToStagingRepositoryTask);
-      task.dependsOn(uploadBundleTask);
+      dependencyConfig.execute(task);
     });
   }
 
@@ -270,7 +285,7 @@ public class PublishingPlugin implements Plugin<Project> {
     return project.getTasks().register(PUBLISH_TO_MAVEN_CENTRAL_TASK_NAME, task -> {
       task.setGroup(PUBLISH_TASK_GROUP);
       task.setDescription("Publishes all Maven publications produced by this project (and its subprojects) to Maven Central.");
-      task.dependsOn(project.getTasks().named("publishAllPublicationsTo" + capitalize(STAGING_REPOSITORY_NAME) + "Repository"));
+      task.dependsOn(project.getTasks().named(publishAllPublicationsToMavenCentralStagingRepository));
       task.dependsOn(uploadBundleTask);
     });
   }
@@ -284,13 +299,8 @@ public class PublishingPlugin implements Plugin<Project> {
    * every publishing project and points the Maven Central publish entry points at it, bypassing
    * the staging, bundle and upload chain.</p>
    */
-  private void configureSnapshotPublishing(Project rootProject, MavenCentralExtension extension) {
-    rootProject.getGradle().projectsEvaluated(gradle -> {
-      if (!rootProject.getVersion().toString().endsWith(SNAPSHOT_VERSION_SUFFIX)) {
-        return;
-      }
-      routeSnapshotPublishing(rootProject, extension);
-    });
+  private boolean isSnapshotVersion(Project project) {
+    return project.getVersion().toString().endsWith(SNAPSHOT_VERSION_SUFFIX);
   }
 
   /**
@@ -304,16 +314,13 @@ public class PublishingPlugin implements Plugin<Project> {
    * @param rootProject the root project evaluating and aggregating publications
    * @param extension the shared Maven Central publishing configuration
    */
-  void routeSnapshotPublishing(Project rootProject, MavenCentralExtension extension) {
+  private void registerSnapshotPublishing(Project rootProject, MavenCentralExtension extension) {
     log.info("Project '{}' version '{}' is a SNAPSHOT, publishing directly to the Maven Central snapshots repository",
             rootProject.getName(), rootProject.getVersion());
     registerSnapshotsRepository(rootProject, extension);
-    String allToSnapshotsTaskName = "publishAllPublicationsTo" + capitalize(SNAPSHOT_REPOSITORY_NAME) + "Repository";
-    TaskProvider<?> publishToMavenCentral = rootProject.getTasks().named(PUBLISH_TO_MAVEN_CENTRAL_TASK_NAME);
-    publishToMavenCentral.configure(task -> {
-      task.setDependsOn(Collections.emptySet());
-      task.dependsOn(rootProject.getTasks().named(allToSnapshotsTaskName));
-    });
+    registerSnapshotPublicationTasks(rootProject);
+
+    TaskProvider<?> publishToMavenCentral = registerSnapshotPublishToMavenCentralTask(rootProject);
     for (Project subproject : rootProject.getSubprojects()) {
       PublishingExtension publishingExtension = subproject.getExtensions().findByType(PublishingExtension.class);
       if (publishingExtension == null) {
@@ -322,16 +329,28 @@ public class PublishingPlugin implements Plugin<Project> {
         continue;
       }
       registerSnapshotsRepository(subproject, extension);
-      Task subprojectAllTask = subproject.getTasks().findByName(allToSnapshotsTaskName);
+      registerSnapshotPublicationTasks(subproject);
+      Task subprojectAllTask = subproject.getTasks().findByName(publishAllPublicationsToMavenCentralSnapshotsRepository);
       if (subprojectAllTask == null) {
         log.debug("Subproject '{}' has no '{}' task, skipped from snapshot publishing",
-                subproject.getPath(), allToSnapshotsTaskName);
+                subproject.getPath(), publishAllPublicationsToMavenCentralSnapshotsRepository);
         continue;
       }
       publishToMavenCentral.configure(task -> task.dependsOn(subprojectAllTask));
-      rewireSnapshotPublicationTasks(subproject);
     }
-    rewireSnapshotPublicationTasks(rootProject);
+    rootProject.getTasks().named(PUBLISH_LIFECYCLE_TASK_NAME).configure(task -> task.dependsOn(publishToMavenCentral));
+  }
+
+  private void registerSnapshotPublicationTasks(Project project) {
+    PublishingExtension publishing = project.getExtensions().findByType(PublishingExtension.class);
+    if (publishing != null) {
+      publishing.getPublications().withType(MavenPublication.class).configureEach(publication -> {
+        String publicationName = publication.getName();
+        String snapshotsTaskName = "publish" + capitalize(publicationName) + "PublicationTo" + capitalize(SNAPSHOT_REPOSITORY_NAME) + "Repository";
+        registerMavenCentralPublicationTask(project, publicationName, task ->
+                task.dependsOn(project.getTasks().named(snapshotsTaskName)));
+      });
+    }
   }
 
   /**
@@ -357,6 +376,14 @@ public class PublishingPlugin implements Plugin<Project> {
     configureSnapshotCredentials(project);
   }
 
+  private TaskProvider<?> registerSnapshotPublishToMavenCentralTask(Project project) {
+    return project.getTasks().register(PUBLISH_TO_MAVEN_CENTRAL_TASK_NAME, task -> {
+      task.setGroup(PUBLISH_TASK_GROUP);
+      task.setDescription("Publishes all Maven publications produced by this project (and its subprojects) to Maven Central.");
+      task.dependsOn(project.getTasks().named(publishAllPublicationsToMavenCentralSnapshotsRepository));
+    });
+  }
+
   /**
    * Configures the shared Maven Central credentials on the snapshots publishing tasks.
    *
@@ -367,26 +394,6 @@ public class PublishingPlugin implements Plugin<Project> {
   private void configureSnapshotCredentials(Project project) {
     project.getTasks().withType(PublishToMavenRepository.class)
             .configureEach(task -> task.doFirst(new SnapshotCredentialsAction()));
-  }
-
-  /**
-   * Points every Maven Central publish entry point of the given project at its snapshots repository.
-   */
-  private void rewireSnapshotPublicationTasks(Project publicationProject) {
-    PublishingExtension publishing = publicationProject.getExtensions().findByType(PublishingExtension.class);
-    if (publishing == null) {
-      return;
-    }
-    publishing.getPublications().withType(MavenPublication.class).all(publication -> {
-      String capitalizedName = capitalize(publication.getName());
-      Task publishTask = publicationProject.getTasks().findByName("publish" + capitalizedName + "PublicationToMavenCentral");
-      Task toSnapshotsTask = publicationProject.getTasks().findByName(
-              "publish" + capitalizedName + "PublicationTo" + capitalize(SNAPSHOT_REPOSITORY_NAME) + "Repository");
-      if (publishTask != null && toSnapshotsTask != null) {
-        publishTask.setDependsOn(Collections.emptySet());
-        publishTask.dependsOn(toSnapshotsTask);
-      }
-    });
   }
 
   /**

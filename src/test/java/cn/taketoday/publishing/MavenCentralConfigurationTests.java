@@ -50,10 +50,11 @@ class MavenCentralConfigurationTests {
   void taskUsesSharedExtensionAsOnlyConfiguration() {
     Project project = ProjectBuilder.builder().withProjectDir(directory.toFile()).build();
     project.getPluginManager().apply(PublishingPlugin.class);
+    project.setVersion("1.2.3");
+    ((org.gradle.api.internal.project.ProjectInternal) project).evaluate();
     var extension = project.getExtensions().getByType(MavenCentralExtension.class);
     var task = (MavenCentralUploadTask) project.getTasks().getByName("uploadMavenCentralBundle");
     project.setGroup("example");
-    project.setVersion("1.2.3");
 
     assertThat(task.getConfiguration()).isSameAs(extension);
     assertThat(extension.getDeploymentName().get()).isEqualTo("example:" + project.getName() + ":1.2.3");

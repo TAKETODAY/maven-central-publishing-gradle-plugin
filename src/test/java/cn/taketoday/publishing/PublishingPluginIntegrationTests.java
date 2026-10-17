@@ -197,6 +197,13 @@ class PublishingPluginIntegrationTests {
             .doesNotContain(":uploadMavenCentralBundle")
             .doesNotContain(":mavenCentralBundle")
             .doesNotContain(":publishAllPublicationsToMavenCentralStagingRepository");
+
+    BuildResult tasks = run("tasks", "--all");
+    assertThat(tasks.getOutput())
+            .doesNotContain("mavenCentralBundle")
+            .doesNotContain("uploadMavenCentralBundle")
+            .doesNotContain("mavenCentralStaging");
+
   }
 
   @Test
@@ -272,7 +279,7 @@ class PublishingPluginIntegrationTests {
               }
             }
             // Exercise the real upload dependency graph without contacting Central.
-            tasks.named('uploadMavenCentralBundle') { enabled = false }
+            tasks.matching { it.name == 'uploadMavenCentralBundle' }.configureEach { enabled = false }
             """);
     Files.createDirectories(directory.resolve("library"));
     Files.createDirectories(directory.resolve("other"));
@@ -438,7 +445,7 @@ class PublishingPluginIntegrationTests {
               version = '1.0'
               publishing { publications { maven(MavenPublication) { from components.java } } }
             }
-            tasks.named('uploadMavenCentralBundle') { enabled = false }
+            tasks.matching { it.name == 'uploadMavenCentralBundle' }.configureEach { enabled = false }
             """);
 
     BuildResult single = run("publishFirstPublicationToMavenCentral", "--parallel");
