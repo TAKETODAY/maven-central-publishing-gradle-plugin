@@ -51,8 +51,10 @@ import static org.gradle.api.publish.plugins.PublishingPlugin.PUBLISH_TASK_GROUP
 /**
  * Configures Maven Central publishing for a Gradle project.
  *
- * <p>The plugin creates a local staging repository, bundles its contents and
- * registers tasks for uploading the bundle to Maven Central.</p>
+ * <p>For release versions the plugin creates a local staging repository, bundles its contents
+ * into an archive and registers tasks for uploading that bundle to Maven Central. For
+ * {@code -SNAPSHOT} versions publishing is routed directly to the Maven Central snapshots
+ * repository, bypassing the staging, bundle and upload chain.</p>
  *
  * @author <a href="https://github.com/TAKETODAY">海子 Yang</a>
  * @since 0.0.1
@@ -292,13 +294,13 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
   }
 
   /**
-   * Routes publishing to the Maven Central snapshots repository for SNAPSHOT versions.
+   * Returns whether the project uses a SNAPSHOT version.
    *
-   * <p>Maven Central publishes {@code -SNAPSHOT} releases through a {@code mvn deploy}-compatible
-   * endpoint instead of the Portal bundle upload. When the root project version ends with
-   * {@code -SNAPSHOT}, this registers the reserved {@code mavenCentralSnapshots} repository on
-   * every publishing project and points the Maven Central publish entry points at it, bypassing
-   * the staging, bundle and upload chain.</p>
+   * <p>A version is treated as a snapshot when it ends with the
+   * {@value #SNAPSHOT_VERSION_SUFFIX} suffix.</p>
+   *
+   * @param project the project whose version is inspected
+   * @return {@code true} if the project version ends with {@code -SNAPSHOT}
    */
   private boolean isSnapshotVersion(Project project) {
     return project.getVersion().toString().endsWith(SNAPSHOT_VERSION_SUFFIX);
@@ -307,10 +309,10 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
   /**
    * Routes Maven Central publishing to the snapshots repository for SNAPSHOT versions.
    *
-   * <p>Called once the project version is final. Registers the reserved
-   * {@code mavenCentralSnapshots} repository on the root project and every publishing subproject
-   * and points {@code publishToMavenCentral} and the per-publication publish entry points at the
-   * snapshots repository, bypassing the staging, bundle and upload chain.</p>
+   * <p>Registers the reserved {@code mavenCentralSnapshots} repository on the root project and
+   * every publishing subproject, and points {@code publishToMavenCentral} and the
+   * per-publication publish entry points at it, bypassing the staging, bundle and upload chain
+   * used for release versions.</p>
    *
    * @param rootProject the root project evaluating and aggregating publications
    * @param extension the shared Maven Central publishing configuration
