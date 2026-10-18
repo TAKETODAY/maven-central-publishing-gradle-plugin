@@ -48,7 +48,7 @@ publishing {
 ```
 
 正式版本会先写入根项目的 `build/publishing/staging-repository`，再打包并上传一个 bundle。
-`-SNAPSHOT` 版本会自动改用 Maven Central Snapshots 仓库，详见[快照发布](#快照发布-snapshot)。
+`-SNAPSHOT` 版本会自动改用 Maven Central Snapshots 仓库，详见[快照发布](#snapshot-publishing)。
 
 ## 凭据配置
 
@@ -153,6 +153,8 @@ mavenCentral {
 重试只处理状态请求失败，不限制部署正常处理的总时长；发布耗时较长时优先增大轮询间隔。
 
 参考：[Maven Central Publisher API](https://central.sonatype.org/publish/publish-portal-api/)。
+
+<a id="snapshot-publishing"></a>
 
 ## 快照发布（SNAPSHOT）
 
