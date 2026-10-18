@@ -1,0 +1,64 @@
+name: Deploy
+
+on:
+  push:
+    paths-ignore:
+      - '**/README.md'
+      - '**/README.en.md'
+      - 'CHANGELOG.md'
+      - 'CONTRIBUTING.md'
+      - 'AGENTS.md'
+      - 'src/docs/**'
+      - 'logo.svg'
+      - '.run/**'
+      - '.idea/**'
+      - '.gitignore'
+      - '.editorconfig'
+      - '.codacy.yaml'
+    branches: [ main ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-snapshot:
+    if: github.repository_owner == 'TAKETODAY'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout project sources
+        uses: actions/checkout@v7
+
+      - name: Read Version
+        id: read-version
+        uses: ./.github/actions/read-version
+
+      - name: Setup Java
+        if: ${{ steps.read-version.outputs.snapshot == 'true' }}
+        uses: actions/setup-java@v6
+        with:
+          distribution: liberica
+          java-version: '25'
+
+      - name: Set Up Gradle
+        if: ${{ steps.read-version.outputs.snapshot == 'true' }}
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Deploy snapshot
+        if: ${{ steps.read-version.outputs.snapshot == 'true' }}
+        shell: bash
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingKeyId: ${{ secrets.SIGNING_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SIGNING_PASSWORD }}
+        run: ./gradlew --no-daemon --no-parallel publishToMavenCentral
+
+      - name: Upload Failure Reports
+        uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: reports
+          path: "**/build/reports/"

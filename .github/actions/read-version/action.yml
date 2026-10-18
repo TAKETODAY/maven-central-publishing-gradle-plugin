@@ -1,0 +1,20 @@
+name: read-version
+author: today
+description: Read project version
+
+outputs:
+  version:
+    description: 'Version of this project'
+    value: ${{ steps.read-version.outputs.version }}
+  snapshot:
+    description: 'Version is snapshot'
+    value: ${{ steps.read-version.outputs.snapshot }}
+runs:
+  using: composite
+  steps:
+    - name: Read Version From gradle.properties
+      id: read-version
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+      run: bash "$ACTION_PATH/read-version.sh"
