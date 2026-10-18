@@ -214,7 +214,7 @@ class MavenCentralPublishingPluginIntegrationTests {
             }
             tasks.register('verifySnapshotRepository') {
               doLast {
-                println "snapshot repository: ${publishing.repositories.getByName('mavenCentralSnapshots').url}"
+                println "snapshot repository: ${publishing.repositories.getByName('mavenCentral').url}"
               }
             }
             """);
@@ -406,7 +406,7 @@ class MavenCentralPublishingPluginIntegrationTests {
   }
 
   @Test
-  void snapshotPublishTasksOptOutOfConfigurationCache() throws IOException {
+  void snapshotPublishingSupportsConfigurationCache() throws IOException {
     write("settings.gradle", "rootProject.name = 'snapshot-cache'");
     write("build.gradle", """
             plugins { id 'cn.taketoday.maven-central-publishing'; id 'java' }
@@ -416,14 +416,14 @@ class MavenCentralPublishingPluginIntegrationTests {
             }
             """);
 
-    BuildResult result = run("publishToMavenCentral", "--configuration-cache", "--dry-run");
-    assertThat(result.getOutput())
-            .contains("Configuration cache entry discarded because incompatible task was found")
-            .contains("publishMavenPublicationToMavenCentralSnapshotsRepository");
+    BuildResult first = run("publishToMavenCentral", "--configuration-cache", "--dry-run");
+    assertThat(first.getOutput()).contains("Configuration cache entry stored");
+    BuildResult second = run("publishToMavenCentral", "--configuration-cache", "--dry-run");
+    assertThat(second.getOutput()).contains("Reusing configuration cache");
   }
 
   @Test
-  void publishesSnapshotsWithCredentialsResolvedAtExecutionTime() throws IOException {
+  void publishesSnapshotsWithConfigurationCache() throws IOException {
     List<String> authorizations = new CopyOnWriteArrayList<>();
     HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
     server.createContext("/", exchange -> {
@@ -450,17 +450,16 @@ class MavenCentralPublishingPluginIntegrationTests {
               }
               mavenCentral {
                 snapshotRepositoryUrl = uri('http://127.0.0.1:%d/')
-                credentials {
-                  username = 'test-user'
-                  password = 'test-password'
-                }
               }
               """.formatted(port));
 
-      BuildResult result = run("publishToMavenCentral", "--configuration-cache");
+      BuildResult first = run("publishToMavenCentral", "--configuration-cache",
+              "-PmavenCentralUsername=test-user", "-PmavenCentralPassword=test-password");
+      assertThat(first.getOutput()).contains("Configuration cache entry stored");
+      BuildResult second = run("publishToMavenCentral", "--configuration-cache",
+              "-PmavenCentralUsername=test-user", "-PmavenCentralPassword=test-password");
+      assertThat(second.getOutput()).contains("Reusing configuration cache");
 
-      assertThat(result.getOutput())
-              .contains("Configuration cache entry discarded because incompatible task was found");
       assertThat(authorizations)
               .isNotEmpty()
               .allSatisfy(authorization -> assertThat(authorization).isEqualTo(
@@ -481,7 +480,7 @@ class MavenCentralPublishingPluginIntegrationTests {
             publishing {
               repositories {
                 maven {
-                  name = 'mavenCentralSnapshots'
+                  name = 'mavenCentral'
                   url = 'https://central.sonatype.com/repository/maven-snapshots/'
                 }
               }
@@ -494,7 +493,7 @@ class MavenCentralPublishingPluginIntegrationTests {
             .withArguments("help")
             .buildAndFail();
 
-    assertThat(result.getOutput()).contains("mavenCentralSnapshots", "is reserved for");
+    assertThat(result.getOutput()).contains("mavenCentral", "is reserved for");
   }
 
   private BuildResult run(String... arguments) {

@@ -181,7 +181,7 @@ class MavenCentralPublishingPluginTests {
     ((ProjectInternal) snapshotProject).evaluate();
     new MavenCentralPublishingPlugin().configurePublishing(snapshotProject, snapshotExtension);
 
-    var repository = (MavenArtifactRepository) publishing.getRepositories().getByName("mavenCentralSnapshots");
+    var repository = (MavenArtifactRepository) publishing.getRepositories().getByName("mavenCentral");
     assertThat(repository.getUrl()).isEqualTo(customSnapshotRepositoryUrl);
     assertThat(snapshotProject.getTasks().findByName("uploadMavenCentralBundle")).isNull();
     assertThat(snapshotProject.getTasks().findByName("mavenCentralBundle")).isNull();
@@ -262,7 +262,7 @@ class MavenCentralPublishingPluginTests {
     publishing.getPublications().create("library", MavenPublication.class);
     ((ProjectInternal) project).evaluate();
 
-    assertThat(publishing.getRepositories().findByName("mavenCentralSnapshots")).isNull();
+    assertThat(publishing.getRepositories().findByName("mavenCentral")).isNull();
     Task upload = task("uploadMavenCentralBundle");
     Task publishAll = task("publishToMavenCentral");
     assertThat(publishAll.getTaskDependencies().getDependencies(publishAll))

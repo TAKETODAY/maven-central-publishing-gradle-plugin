@@ -22,7 +22,6 @@ import org.gradle.api.GradleException;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
-import org.gradle.api.artifacts.repositories.MavenArtifactRepository;
 import org.gradle.api.credentials.PasswordCredentials;
 import org.gradle.api.file.Directory;
 import org.gradle.api.file.RegularFile;
@@ -32,7 +31,6 @@ import org.gradle.api.provider.Provider;
 import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.api.publish.maven.plugins.MavenPublishPlugin;
-import org.gradle.api.publish.maven.tasks.PublishToMavenRepository;
 import org.gradle.api.tasks.Delete;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.bundling.AbstractArchiveTask;
@@ -41,8 +39,6 @@ import org.gradle.api.tasks.bundling.Tar;
 import org.gradle.api.tasks.bundling.Zip;
 import org.gradle.plugins.signing.SigningPlugin;
 
-import java.io.Serial;
-import java.io.Serializable;
 import java.net.URI;
 
 import static infra.util.StringUtils.capitalize;
@@ -83,7 +79,10 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
   public static final String PUBLISH_TO_MAVEN_CENTRAL_TASK_NAME = "publishToMavenCentral";
 
   /** The name of the repository used to publish SNAPSHOT versions. */
-  public static final String SNAPSHOT_REPOSITORY_NAME = "mavenCentralSnapshots";
+  public static final String SNAPSHOT_REPOSITORY_NAME = "mavenCentral";
+
+  /** The legacy task-name suffix used by the snapshot publishing entry points. */
+  private static final String SNAPSHOT_TASK_SUFFIX = "mavenCentralSnapshots";
 
   /** The suffix that identifies a SNAPSHOT version. */
   public static final String SNAPSHOT_VERSION_SUFFIX = "-SNAPSHOT";
@@ -102,8 +101,12 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
           "publishAllPublicationsTo" + capitalize(STAGING_REPOSITORY_NAME) + "Repository";
 
   /** The name of the task that publishes all publications to the snapshots repository. */
-  private static final String publishAllPublicationsToMavenCentralSnapshotsRepository =
+  private static final String publishAllPublicationsToMavenCentralRepository =
           "publishAllPublicationsTo" + capitalize(SNAPSHOT_REPOSITORY_NAME) + "Repository";
+
+  /** The legacy name of the task that publishes all publications to the snapshots repository. */
+  private static final String publishAllPublicationsToMavenCentralSnapshotsRepository =
+          "publishAllPublicationsTo" + capitalize(SNAPSHOT_TASK_SUFFIX) + "Repository";
 
   /**
    * Creates a Maven Central publishing plugin.
@@ -340,9 +343,8 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
     log.info("Project '{}' version '{}' is a SNAPSHOT, publishing directly to the Maven Central snapshots repository",
             rootProject.getName(), rootProject.getVersion());
     registerSnapshotsRepository(rootProject, extension);
-    configureSnapshotPublications(rootProject,
-            rootProject.getExtensions().getByType(PublishingExtension.class), extension);
-    TaskProvider<?> publishAllMavenCentralSnapshots = rootProject.getTasks().named(publishAllPublicationsToMavenCentralSnapshotsRepository);
+    configureSnapshotPublications(rootProject, rootProject.getExtensions().getByType(PublishingExtension.class));
+    TaskProvider<?> publishAllMavenCentralSnapshots = rootProject.getTasks().named(publishAllPublicationsToMavenCentralRepository);
     for (Project subproject : rootProject.getSubprojects()) {
       PublishingExtension publishingExtension = subproject.getExtensions().findByType(PublishingExtension.class);
       if (publishingExtension == null) {
@@ -351,7 +353,7 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
         continue;
       }
       registerSnapshotsRepository(subproject, extension);
-      configureSnapshotPublications(subproject, publishingExtension, extension);
+      configureSnapshotPublications(subproject, publishingExtension);
       TaskProvider<?> subprojectAllTask = subproject.getTasks()
               .named(publishAllPublicationsToMavenCentralSnapshotsRepository);
       publishAllMavenCentralSnapshots.configure(task -> task.dependsOn(subprojectAllTask));
@@ -359,14 +361,19 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
     return registerSnapshotPublishToMavenCentralTask(rootProject);
   }
 
-  private void configureSnapshotPublications(Project publicationProject, PublishingExtension publishing,
-          MavenCentralExtension extension) {
+  private void configureSnapshotPublications(Project publicationProject, PublishingExtension publishing) {
     publishing.getPublications().withType(MavenPublication.class).configureEach(publication -> {
       String publicationName = publication.getName();
       var publishToSnapshotsRepositoryTask = getPublishToSnapshotsRepositoryTask(publicationProject, publicationName);
-      configureSnapshotCredentials(publishToSnapshotsRepositoryTask, extension);
+      var legacyPublishToSnapshotsRepositoryTask = publicationProject.getTasks().register(
+              "publish" + capitalize(publicationName) + "PublicationTo" + capitalize(SNAPSHOT_TASK_SUFFIX) + "Repository",
+              task -> {
+                task.setGroup(PUBLISH_TASK_GROUP);
+                task.setDescription("Publishes Maven publication '" + publicationName + "' to Maven Central snapshots.");
+                task.dependsOn(publishToSnapshotsRepositoryTask);
+              });
       registerMavenCentralPublicationTask(publicationProject, publicationName,
-              task -> task.dependsOn(publishToSnapshotsRepositoryTask));
+              task -> task.dependsOn(legacyPublishToSnapshotsRepositoryTask));
     });
   }
 
@@ -374,20 +381,50 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
    * Registers the reserved Maven Central snapshots repository for SNAPSHOT publishing.
    *
    * <p>The repository points at the {@code mvn deploy}-compatible snapshots endpoint and reuses
-   * the shared {@code mavenCentral} credentials with basic authentication. The repository name is
-   * reserved; user-declared repositories with the same name are rejected.</p>
+   * the shared {@code mavenCentral} credentials with basic authentication. Its name matches the
+   * {@code mavenCentral} credential identity, so Gradle can resolve the credentials at execution
+   * time and configuration caching only stores that identity. Explicitly configured credentials
+   * are applied directly, which lets Gradle opt the publishing tasks out of configuration caching
+   * as it does for any explicit repository credentials. The repository name is reserved;
+   * user-declared repositories with the same name are rejected.</p>
    */
   private void registerSnapshotsRepository(Project project, MavenCentralExtension extension) {
     validateUrl(extension.getSnapshotRepositoryUrl().get(), "snapshotRepositoryUrl");
     PublishingExtension publishing = project.getExtensions().getByType(PublishingExtension.class);
-    if (publishing.getRepositories().findByName(SNAPSHOT_REPOSITORY_NAME) != null) {
-      throw new GradleException("Repository '" + SNAPSHOT_REPOSITORY_NAME + "' in project '"
-              + project.getName() + "' is reserved for 'cn.taketoday.maven-central-publishing' and must not be configured by users.");
-    }
+    rejectReservedRepository(publishing, project, SNAPSHOT_REPOSITORY_NAME);
+    rejectReservedRepository(publishing, project, SNAPSHOT_TASK_SUFFIX);
+
     publishing.getRepositories().maven(repository -> {
       repository.setName(SNAPSHOT_REPOSITORY_NAME);
       repository.setUrl(extension.getSnapshotRepositoryUrl());
+      if (project.getGradle().getStartParameter().isDryRun()) {
+        // A dry run never uploads, so do not require publishing credentials for it.
+        return;
+      }
+      if (extension.usesExplicitCredentials()) {
+        PasswordCredentials provided = extension.getCredentials().get();
+        repository.credentials(credentials -> {
+          credentials.setUsername(provided.getUsername());
+          credentials.setPassword(provided.getPassword());
+        });
+      }
+      else {
+        repository.credentials(PasswordCredentials.class);
+      }
     });
+
+    project.getTasks().register(publishAllPublicationsToMavenCentralSnapshotsRepository, task -> {
+      task.setGroup(PUBLISH_TASK_GROUP);
+      task.setDescription("Publishes all Maven publications produced by this project to Maven Central snapshots.");
+      task.dependsOn(project.getTasks().named(publishAllPublicationsToMavenCentralRepository));
+    });
+  }
+
+  private void rejectReservedRepository(PublishingExtension publishing, Project project, String name) {
+    if (publishing.getRepositories().findByName(name) != null) {
+      throw new GradleException("Repository '" + name + "' in project '" + project.getName()
+              + "' is reserved for 'cn.taketoday.maven-central-publishing' and must not be configured by users.");
+    }
   }
 
   private void validateUrl(URI url, String propertyName) {
@@ -404,65 +441,6 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
       task.setDescription("Publishes all Maven publications produced by this project (and its subprojects) to Maven Central.");
       task.dependsOn(project.getTasks().named(publishAllPublicationsToMavenCentralSnapshotsRepository));
     });
-  }
-
-  /**
-   * Configures the shared Maven Central credentials on a snapshots publishing task.
-   *
-   * <p>Credentials are resolved right before the task executes, keeping configuration and
-   * task-graph calculation free of credential requirements. A missing credential therefore fails
-   * the publishing task at execution time with Gradle's standard message.</p>
-   *
-   * <p>{@code maven-publish} discards its {@code repository} field when writing the configuration
-   * cache and rebuilds the repository from a credential identity derived from the repository name.
-   * The credentials injected here are therefore only available when the configuration cache is not
-   * used, so the task opts out of it. This keeps the documented behavior of passing
-   * {@code mavenCentral} credentials at execution time instead of requiring them during
-   * configuration.</p>
-   *
-   * @param publishTask the snapshots publish task to configure
-   * @param extension the shared Maven Central publishing configuration
-   */
-  private void configureSnapshotCredentials(TaskProvider<?> publishTask, MavenCentralExtension extension) {
-    Provider<PasswordCredentials> credentials = extension.getCredentials();
-    publishTask.configure(task -> {
-      task.notCompatibleWithConfigurationCache(
-              "Maven Central snapshot credentials are resolved at execution time.");
-      task.doFirst(new MavenCentralSnapshotCredentialsAction(credentials));
-    });
-  }
-
-  /**
-   * Applies the shared Maven Central credentials to the snapshots repository right before a
-   * snapshots publish task runs.
-   *
-   * <p>The credentials provider is transient so that the configuration cache never serializes it;
-   * the snapshots publish tasks opt out of the configuration cache because {@code maven-publish}
-   * does not retain the configured repository there.</p>
-   */
-  private static final class MavenCentralSnapshotCredentialsAction implements Action<Task>, Serializable {
-
-    @Serial
-    private static final long serialVersionUID = 1L;
-
-    private final transient Provider<PasswordCredentials> credentials;
-
-    MavenCentralSnapshotCredentialsAction(Provider<PasswordCredentials> credentials) {
-      this.credentials = credentials;
-    }
-
-    @Override
-    public void execute(Task task) {
-      MavenArtifactRepository repository = ((PublishToMavenRepository) task).getRepository();
-      if (!SNAPSHOT_REPOSITORY_NAME.equals(repository.getName())) {
-        return;
-      }
-
-      PasswordCredentials provided = credentials.get();
-      PasswordCredentials target = repository.getCredentials();
-      target.setUsername(provided.getUsername());
-      target.setPassword(provided.getPassword());
-    }
   }
 
 }

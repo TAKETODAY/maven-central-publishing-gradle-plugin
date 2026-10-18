@@ -217,7 +217,7 @@ When the root project version ends with `-SNAPSHOT` (for example, `1.0.0-SNAPSHO
 Portal bundle. Instead, it publishes directly to Maven Central Snapshots through an interface compatible with
 `mvn deploy`:
 
-- registers the reserved `mavenCentralSnapshots` repository for the root project and every subproject that applies `maven-publish`;
+- registers the reserved `mavenCentral` repository for the root project and every subproject that applies `maven-publish`;
 - uses `https://central.sonatype.com/repository/maven-snapshots/` by default and reuses the Maven Central credentials;
 - points `publishToMavenCentral` and publication publishing tasks directly to the Snapshots repository;
 - skips the `mavenCentralStaging`, `mavenCentralBundle`, and `uploadMavenCentralBundle` task chain.
@@ -226,14 +226,17 @@ Before publishing, enable SNAPSHOTs for the namespace on the Central Portal [Nam
 page: open the namespace menu and select **Enable SNAPSHOTs**.
 
 Snapshot artifacts can be overwritten and are cleaned up after a period of time (currently 90 days). This differs
-from release versions, which cannot be overwritten. `mavenCentralSnapshots` and `mavenCentralStaging` are reserved
-repository names and must not be declared by users.
+from release versions, which cannot be overwritten. `mavenCentral`, `mavenCentralSnapshots`, and
+`mavenCentralStaging` are reserved repository names and must not be declared by users. The snapshots repository
+is named `mavenCentral` so it matches Gradle's `mavenCentralUsername` / `mavenCentralPassword` credential
+identity; task names such as `publishAllPublicationsToMavenCentralSnapshotsRepository` keep the
+`mavenCentralSnapshots` suffix.
 
-Snapshot publishing reuses the `mavenCentral` credentials, which are injected when the publish task runs
-rather than being required during configuration. Because `maven-publish` does not retain the publishing
-repository in the configuration cache, snapshot publish tasks opt out of it: Gradle reports the task as
-incompatible and discards the cache entry when publishing snapshots, while regular builds keep reusing the
-configuration cache.
+Snapshot publishing reuses the `mavenCentral` credentials. With the default Gradle credentials provider the
+configuration cache stores only the credential identity and resolves the values during publishing, so snapshot
+publishing supports the configuration cache as well. When credentials are set explicitly through
+`mavenCentral { credentials { ... } }`, Gradle disables the configuration cache for the publishing task, as it
+does for any explicit repository credentials.
 
 See the [Portal Snapshots documentation](https://central.sonatype.org/publish/publish-portal-snapshots/).
 

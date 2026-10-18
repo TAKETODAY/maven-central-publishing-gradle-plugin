@@ -49,6 +49,8 @@ public abstract class MavenCentralExtension {
 
   private final BundleOptions bundle;
 
+  private boolean explicitCredentials;
+
   /**
    * Creates Maven Central publishing options.
    *
@@ -100,6 +102,17 @@ public abstract class MavenCentralExtension {
     PasswordCredentials credentials = getObjects().newInstance(PasswordCredentials.class);
     action.execute(credentials);
     getCredentials().set(credentials);
+    explicitCredentials = true;
+  }
+
+  /**
+   * Returns whether credentials were set explicitly through {@link #credentials(Action)} instead
+   * of the default Gradle {@code mavenCentral} credentials provider.
+   *
+   * @return {@code true} if explicit credentials were configured
+   */
+  boolean usesExplicitCredentials() {
+    return explicitCredentials;
   }
 
   /**

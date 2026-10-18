@@ -210,7 +210,7 @@ mavenCentral {
 当根项目版本以 `-SNAPSHOT` 结尾（例如 `1.0.0-SNAPSHOT`）时，插件不会上传 Portal bundle，
 而是通过兼容 `mvn deploy` 的接口直接发布到 Maven Central Snapshots：
 
-- 自动为根项目及所有应用 `maven-publish` 的子模块注册保留仓库 `mavenCentralSnapshots`；
+- 自动为根项目及所有应用 `maven-publish` 的子模块注册保留仓库 `mavenCentral`；
 - 仓库地址为 `https://central.sonatype.com/repository/maven-snapshots/`，复用 Maven Central 凭据；
 - `publishToMavenCentral` 和各 publication 发布任务直接指向快照仓库；
 - 不执行 `mavenCentralStaging`、`mavenCentralBundle` 或 `uploadMavenCentralBundle` 任务链。
@@ -219,13 +219,16 @@ mavenCentral {
 页面启用 SNAPSHOTs（命名空间下拉菜单 → **Enable SNAPSHOTs**）。
 
 快照构件可以覆盖，并会在一段时间后（当前为 90 天）清理；这与正式版本不可覆盖的语义不同。
-`mavenCentralSnapshots` 和 `mavenCentralStaging` 都是插件保留名称，不能由用户自行声明。
+`mavenCentral`、`mavenCentralSnapshots` 和 `mavenCentralStaging` 都是插件保留名称，不能由用户自行声明。
+其中快照发布仓库使用 `mavenCentral`，以便与 Gradle 的 `mavenCentralUsername` / `mavenCentralPassword`
+凭据身份保持一致；`publishAllPublicationsToMavenCentralSnapshotsRepository` 等任务名仍保留
+`mavenCentralSnapshots` 后缀。
 
 `publisherUrl` 用于正式版本的 Portal Publisher API，`snapshotRepositoryUrl` 用于快照版本的 Maven
 仓库上传接口。两者默认值通常无需修改，并且必须配置为绝对的 HTTP(S) URL。快照发布复用
-`mavenCentral` 凭据；凭据在发布任务执行时注入，不会在配置阶段要求提供。由于 `maven-publish`
-不会在配置缓存中保留发布仓库，快照发布任务不参与配置缓存：运行快照发布时 Gradle 会提示任务不兼容并
-丢弃缓存条目，但普通构建仍可正常复用配置缓存。
+`mavenCentral` 凭据；使用默认 Gradle 凭据时，配置缓存只保存凭据身份，凭据值在发布执行阶段解析，
+因此快照发布同样支持配置缓存。若通过 `mavenCentral { credentials { ... } }` 显式设置凭据，
+Gradle 会按标准行为禁用该发布任务的配置缓存。
 
 参考：[Portal Snapshots](https://central.sonatype.org/publish/publish-portal-snapshots/)。
 
