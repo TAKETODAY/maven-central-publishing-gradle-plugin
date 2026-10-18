@@ -10,6 +10,8 @@
 - 根项目聚合多模块发布；
 - `-SNAPSHOT` 版本直接发布到 Maven Central Snapshots 仓库。
 
+详细变更见 [CHANGELOG.md](./CHANGELOG.md)。
+
 ![Java17](https://img.shields.io/badge/JDK-17+-success.svg)
 [![Apache License 2.0](https://img.shields.io/github/license/TAKETODAY/maven-central-publishing-gradle-plugin?color=blue)](./LICENSE)
 [![Release](https://github.com/TAKETODAY/maven-central-publishing-gradle-plugin/actions/workflows/release.yaml/badge.svg)](https://github.com/TAKETODAY/maven-central-publishing-gradle-plugin/actions/workflows/release.yaml)
