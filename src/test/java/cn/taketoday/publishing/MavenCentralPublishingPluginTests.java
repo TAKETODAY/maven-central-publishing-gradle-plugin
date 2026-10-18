@@ -179,13 +179,73 @@ class MavenCentralPublishingPluginTests {
     assertThat(snapshotProject.getTasks().findByName("uploadMavenCentralBundle")).isNull();
     assertThat(snapshotProject.getTasks().findByName("mavenCentralBundle")).isNull();
     assertThat(snapshotProject.getTasks().findByName("mavenCentralStaging")).isNull();
-    assertThat(snapshotProject.getTasks().findByName("publishLibraryPublicationToMavenCentral")).isNull();
-    assertThat(snapshotProject.getTasks().findByName("publishLibraryPublicationToMavenCentralSnapshotsRepository")).isNotNull();
+    Task publishLibrary = snapshotProject.getTasks().getByName("publishLibraryPublicationToMavenCentral");
+    assertThat(publishLibrary.getTaskDependencies().getDependencies(publishLibrary))
+            .extracting(Task::getName)
+            .contains("publishLibraryPublicationToMavenCentralSnapshotsRepository");
     Task publishAll = snapshotProject.getTasks().getByName("publishToMavenCentral");
     assertThat(publishAll.getTaskDependencies().getDependencies(publishAll))
             .extracting(Task::getName)
             .contains("publishAllPublicationsToMavenCentralSnapshotsRepository")
             .doesNotContain("uploadMavenCentralBundle", "publishAllPublicationsToMavenCentralStagingRepository");
+  }
+
+  @Test
+  void snapshotVersionRegistersPublicationTasksForSubprojects() {
+    Project rootProject = ProjectBuilder.builder().withProjectDir(directory.toFile()).build();
+    rootProject.setVersion("1.0-SNAPSHOT");
+    rootProject.getPluginManager().apply(MavenCentralPublishingPlugin.class);
+    MavenCentralExtension rootExtension = rootProject.getExtensions().getByType(MavenCentralExtension.class);
+
+    Project subproject = ProjectBuilder.builder()
+            .withName("library")
+            .withParent(rootProject)
+            .build();
+    subproject.getPluginManager().apply("maven-publish");
+    PublishingExtension publishing = subproject.getExtensions().getByType(PublishingExtension.class);
+    publishing.getPublications().create("library", MavenPublication.class);
+
+    ((ProjectInternal) rootProject).evaluate();
+    new MavenCentralPublishingPlugin().configurePublishing(rootProject, rootExtension);
+
+    Task publish = subproject.getTasks().getByName("publishLibraryPublicationToMavenCentral");
+    assertThat(publish.getTaskDependencies().getDependencies(publish))
+            .extracting(Task::getName)
+            .containsExactly("publishLibraryPublicationToMavenCentralSnapshotsRepository");
+    assertThat(subproject.getTasks().getByName("publishLibraryPublicationToMavenCentralSnapshotsRepository"))
+            .isNotNull();
+    assertThat(subproject.getTasks().findByName("uploadMavenCentralBundle")).isNull();
+    assertThat(subproject.getTasks().findByName("mavenCentralBundle")).isNull();
+  }
+
+  @Test
+  void releaseVersionRegistersPublicationTasksForSubprojects() {
+    Project rootProject = ProjectBuilder.builder().withProjectDir(directory.toFile()).build();
+    rootProject.setVersion("1.0");
+    rootProject.getPluginManager().apply(MavenCentralPublishingPlugin.class);
+    MavenCentralExtension rootExtension = rootProject.getExtensions().getByType(MavenCentralExtension.class);
+
+    Project subproject = ProjectBuilder.builder()
+            .withName("library")
+            .withParent(rootProject)
+            .build();
+    subproject.getPluginManager().apply("maven-publish");
+    PublishingExtension publishing = subproject.getExtensions().getByType(PublishingExtension.class);
+    publishing.getPublications().create("library", MavenPublication.class);
+
+    ((ProjectInternal) rootProject).evaluate();
+    new MavenCentralPublishingPlugin().configurePublishing(rootProject, rootExtension);
+
+    Task publish = subproject.getTasks().getByName("publishLibraryPublicationToMavenCentral");
+    assertThat(publish.getTaskDependencies().getDependencies(publish))
+            .extracting(Task::getName)
+            .contains("publishLibraryPublicationToMavenCentralStagingRepository", "uploadMavenCentralBundle");
+    Task staging = subproject.getTasks().getByName("publishLibraryPublicationToMavenCentralStagingRepository");
+    assertThat(staging.getTaskDependencies().getDependencies(staging))
+            .extracting(Task::getName)
+            .contains("cleanMavenCentralStagingRepository");
+    assertThat(rootProject.getTasks().getByName("uploadMavenCentralBundle")).isNotNull();
+    assertThat(subproject.getTasks().findByName("mavenCentralBundle")).isNull();
   }
 
   @Test

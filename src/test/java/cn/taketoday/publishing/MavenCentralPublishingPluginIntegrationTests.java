@@ -93,8 +93,67 @@ class MavenCentralPublishingPluginIntegrationTests {
     BuildResult result = run(":library:publishLibraryPublicationToMavenCentral", "--dry-run");
 
     assertThat(result.getOutput())
+            .contains(":cleanMavenCentralStagingRepository")
             .contains(":library:publishLibraryPublicationToMavenCentralStagingRepository")
             .contains(":uploadMavenCentralBundle")
+            .doesNotContain(":publishAllPublicationsToMavenCentralStagingRepository");
+  }
+
+  @Test
+  void registersSnapshotPublicationTasksForSubprojects() throws IOException {
+    write("settings.gradle", "rootProject.name = 'snapshot-aggregate'; include 'library'");
+    write("build.gradle", """
+            plugins { id 'cn.taketoday.maven-central-publishing' }
+            version = '1.0-SNAPSHOT'
+            project(':library') {
+              apply plugin: 'java'
+              apply plugin: 'maven-publish'
+              group = 'example'
+              version = '1.0-SNAPSHOT'
+              publishing {
+                publications {
+                  library(MavenPublication) { from components.java }
+                }
+              }
+            }
+            """);
+    Files.createDirectories(directory.resolve("library"));
+
+    BuildResult result = run(":library:publishLibraryPublicationToMavenCentral", "--dry-run");
+
+    assertThat(result.getOutput())
+            .contains(":library:publishLibraryPublicationToMavenCentral")
+            .contains(":library:publishLibraryPublicationToMavenCentralSnapshotsRepository")
+            .doesNotContain(":uploadMavenCentralBundle")
+            .doesNotContain(":mavenCentralBundle")
+            .doesNotContain(":publishAllPublicationsToMavenCentralStagingRepository");
+  }
+
+  @Test
+  void snapshotPublicationTaskUsesSnapshotsRepositoryForRootPublication() throws IOException {
+    write("settings.gradle", "rootProject.name = 'snapshot-root'");
+    write("build.gradle", """
+            plugins {
+              id 'cn.taketoday.maven-central-publishing'
+              id 'java'
+              id 'maven-publish'
+            }
+            version = '1.0-SNAPSHOT'
+            group = 'example'
+            publishing {
+              publications {
+                library(MavenPublication) { from components.java }
+              }
+            }
+            """);
+
+    BuildResult result = run("publishLibraryPublicationToMavenCentral", "--dry-run");
+
+    assertThat(result.getOutput())
+            .contains(":publishLibraryPublicationToMavenCentral")
+            .contains(":publishLibraryPublicationToMavenCentralSnapshotsRepository")
+            .doesNotContain(":uploadMavenCentralBundle")
+            .doesNotContain(":mavenCentralBundle")
             .doesNotContain(":publishAllPublicationsToMavenCentralStagingRepository");
   }
 

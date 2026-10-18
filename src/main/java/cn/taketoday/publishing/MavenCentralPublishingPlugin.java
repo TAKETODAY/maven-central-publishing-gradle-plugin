@@ -277,6 +277,11 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
     return project.getTasks().named("publish" + capitalize(publicationName) + "PublicationTo" + capitalize(STAGING_REPOSITORY_NAME) + "Repository");
   }
 
+  private TaskProvider<?> getPublishToSnapshotsRepositoryTask(Project project, String publicationName) {
+    return project.getTasks().named("publish" + capitalize(publicationName) + "PublicationTo"
+            + capitalize(SNAPSHOT_REPOSITORY_NAME) + "Repository");
+  }
+
   private void registerMavenCentralPublicationTask(Project project, String publicationName, Action<Task> dependencyConfig) {
     project.getTasks().register("publish" + capitalize(publicationName) + "PublicationToMavenCentral", task -> {
       task.setGroup(PUBLISH_TASK_GROUP);
@@ -322,6 +327,8 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
     log.info("Project '{}' version '{}' is a SNAPSHOT, publishing directly to the Maven Central snapshots repository",
             rootProject.getName(), rootProject.getVersion());
     registerSnapshotsRepository(rootProject, extension);
+    configureSnapshotPublications(rootProject,
+            rootProject.getExtensions().getByType(PublishingExtension.class));
     TaskProvider<?> publishAllMavenCentralSnapshots = rootProject.getTasks().named(publishAllPublicationsToMavenCentralSnapshotsRepository);
     for (Project subproject : rootProject.getSubprojects()) {
       PublishingExtension publishingExtension = subproject.getExtensions().findByType(PublishingExtension.class);
@@ -331,6 +338,7 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
         continue;
       }
       registerSnapshotsRepository(subproject, extension);
+      configureSnapshotPublications(subproject, publishingExtension);
       Task subprojectAllTask = subproject.getTasks().findByName(publishAllPublicationsToMavenCentralSnapshotsRepository);
       if (subprojectAllTask == null) {
         log.debug("Subproject '{}' has no '{}' task, skipped from snapshot publishing",
@@ -342,6 +350,15 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
 
     TaskProvider<?> publishToMavenCentral = registerSnapshotPublishToMavenCentralTask(rootProject);
     rootProject.getTasks().named(PUBLISH_LIFECYCLE_TASK_NAME).configure(task -> task.dependsOn(publishToMavenCentral));
+  }
+
+  private void configureSnapshotPublications(Project publicationProject, PublishingExtension publishing) {
+    publishing.getPublications().withType(MavenPublication.class).configureEach(publication -> {
+      String publicationName = publication.getName();
+      var publishToSnapshotsRepositoryTask = getPublishToSnapshotsRepositoryTask(publicationProject, publicationName);
+      registerMavenCentralPublicationTask(publicationProject, publicationName,
+              task -> task.dependsOn(publishToSnapshotsRepositoryTask));
+    });
   }
 
   /**
