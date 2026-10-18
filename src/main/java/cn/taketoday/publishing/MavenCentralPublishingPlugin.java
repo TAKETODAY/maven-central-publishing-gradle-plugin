@@ -341,7 +341,7 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
             rootProject.getName(), rootProject.getVersion());
     registerSnapshotsRepository(rootProject, extension);
     configureSnapshotPublications(rootProject,
-            rootProject.getExtensions().getByType(PublishingExtension.class));
+            rootProject.getExtensions().getByType(PublishingExtension.class), extension);
     TaskProvider<?> publishAllMavenCentralSnapshots = rootProject.getTasks().named(publishAllPublicationsToMavenCentralSnapshotsRepository);
     for (Project subproject : rootProject.getSubprojects()) {
       PublishingExtension publishingExtension = subproject.getExtensions().findByType(PublishingExtension.class);
@@ -351,7 +351,7 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
         continue;
       }
       registerSnapshotsRepository(subproject, extension);
-      configureSnapshotPublications(subproject, publishingExtension);
+      configureSnapshotPublications(subproject, publishingExtension, extension);
       TaskProvider<?> subprojectAllTask = subproject.getTasks()
               .named(publishAllPublicationsToMavenCentralSnapshotsRepository);
       publishAllMavenCentralSnapshots.configure(task -> task.dependsOn(subprojectAllTask));
@@ -359,10 +359,12 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
     return registerSnapshotPublishToMavenCentralTask(rootProject);
   }
 
-  private void configureSnapshotPublications(Project publicationProject, PublishingExtension publishing) {
+  private void configureSnapshotPublications(Project publicationProject, PublishingExtension publishing,
+          MavenCentralExtension extension) {
     publishing.getPublications().withType(MavenPublication.class).configureEach(publication -> {
       String publicationName = publication.getName();
       var publishToSnapshotsRepositoryTask = getPublishToSnapshotsRepositoryTask(publicationProject, publicationName);
+      configureSnapshotCredentials(publishToSnapshotsRepositoryTask, extension);
       registerMavenCentralPublicationTask(publicationProject, publicationName,
               task -> task.dependsOn(publishToSnapshotsRepositoryTask));
     });
@@ -372,10 +374,8 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
    * Registers the reserved Maven Central snapshots repository for SNAPSHOT publishing.
    *
    * <p>The repository points at the {@code mvn deploy}-compatible snapshots endpoint and reuses
-   * the shared {@code mavenCentral} credentials with basic authentication. Credentials are resolved
-   * lazily right before each publish task runs so that configuration and task-graph calculation
-   * never require credentials. The repository name is reserved; user-declared repositories with the
-   * same name are rejected.</p>
+   * the shared {@code mavenCentral} credentials with basic authentication. The repository name is
+   * reserved; user-declared repositories with the same name are rejected.</p>
    */
   private void registerSnapshotsRepository(Project project, MavenCentralExtension extension) {
     validateUrl(extension.getSnapshotRepositoryUrl().get(), "snapshotRepositoryUrl");
@@ -388,7 +388,6 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
       repository.setName(SNAPSHOT_REPOSITORY_NAME);
       repository.setUrl(extension.getSnapshotRepositoryUrl());
     });
-    configureSnapshotCredentials(project);
   }
 
   private void validateUrl(URI url, String propertyName) {
@@ -408,35 +407,48 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
   }
 
   /**
-   * Configures the shared Maven Central credentials on the snapshots publishing tasks.
+   * Configures the shared Maven Central credentials on a snapshots publishing task.
    *
-   * <p>Credentials are only resolved right before a snapshots publish task executes, keeping both
-   * configuration and task-graph calculation free of credential requirements. A missing credential
-   * therefore fails the publishing task at execution time with Gradle's standard message.</p>
+   * <p>Credentials are resolved right before the task executes, keeping configuration and
+   * task-graph calculation free of credential requirements. A missing credential therefore fails
+   * the publishing task at execution time with Gradle's standard message.</p>
    *
-   * @param project the project whose publish tasks are configured
+   * <p>{@code maven-publish} discards its {@code repository} field when writing the configuration
+   * cache and rebuilds the repository from a credential identity derived from the repository name.
+   * The credentials injected here are therefore only available when the configuration cache is not
+   * used, so the task opts out of it. This keeps the documented behavior of passing
+   * {@code mavenCentral} credentials at execution time instead of requiring them during
+   * configuration.</p>
+   *
+   * @param publishTask the snapshots publish task to configure
+   * @param extension the shared Maven Central publishing configuration
    */
-  private void configureSnapshotCredentials(Project project) {
-    project.getTasks().withType(PublishToMavenRepository.class)
-            .configureEach(task -> task.doFirst(new MavenCentralSnapshotCredentialsAction()));
+  private void configureSnapshotCredentials(TaskProvider<?> publishTask, MavenCentralExtension extension) {
+    Provider<PasswordCredentials> credentials = extension.getCredentials();
+    publishTask.configure(task -> {
+      task.notCompatibleWithConfigurationCache(
+              "Maven Central snapshot credentials are resolved at execution time.");
+      task.doFirst(new MavenCentralSnapshotCredentialsAction(credentials));
+    });
   }
 
   /**
    * Applies the shared Maven Central credentials to the snapshots repository right before a
    * snapshots publish task runs.
    *
-   * <p>Stateless and serializable: it holds no fields, so configuration caching never serializes
-   * credentials. The shared {@link MavenCentralExtension} is located at execution time from the
-   * running task's root project, keeping configuration and task-graph calculation free of
-   * credential requirements; a missing credential fails the publishing task at execution time with
-   * Gradle's standard message.</p>
+   * <p>The credentials provider is transient so that the configuration cache never serializes it;
+   * the snapshots publish tasks opt out of the configuration cache because {@code maven-publish}
+   * does not retain the configured repository there.</p>
    */
   private static final class MavenCentralSnapshotCredentialsAction implements Action<Task>, Serializable {
 
     @Serial
     private static final long serialVersionUID = 1L;
 
-    MavenCentralSnapshotCredentialsAction() {
+    private final transient Provider<PasswordCredentials> credentials;
+
+    MavenCentralSnapshotCredentialsAction(Provider<PasswordCredentials> credentials) {
+      this.credentials = credentials;
     }
 
     @Override
@@ -446,14 +458,10 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
         return;
       }
 
-      MavenCentralExtension extension = task.getProject().getRootProject()
-              .getExtensions().findByType(MavenCentralExtension.class);
-      if (extension != null) {
-        PasswordCredentials provided = extension.getCredentials().get();
-        PasswordCredentials target = repository.getCredentials();
-        target.setUsername(provided.getUsername());
-        target.setPassword(provided.getPassword());
-      }
+      PasswordCredentials provided = credentials.get();
+      PasswordCredentials target = repository.getCredentials();
+      target.setUsername(provided.getUsername());
+      target.setPassword(provided.getPassword());
     }
   }
 

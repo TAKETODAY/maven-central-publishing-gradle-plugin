@@ -229,6 +229,12 @@ Snapshot artifacts can be overwritten and are cleaned up after a period of time 
 from release versions, which cannot be overwritten. `mavenCentralSnapshots` and `mavenCentralStaging` are reserved
 repository names and must not be declared by users.
 
+Snapshot publishing reuses the `mavenCentral` credentials, which are injected when the publish task runs
+rather than being required during configuration. Because `maven-publish` does not retain the publishing
+repository in the configuration cache, snapshot publish tasks opt out of it: Gradle reports the task as
+incompatible and discards the cache entry when publishing snapshots, while regular builds keep reusing the
+configuration cache.
+
 See the [Portal Snapshots documentation](https://central.sonatype.org/publish/publish-portal-snapshots/).
 
 <a id="multi-module-publishing"></a>

@@ -223,7 +223,9 @@ mavenCentral {
 
 `publisherUrl` 用于正式版本的 Portal Publisher API，`snapshotRepositoryUrl` 用于快照版本的 Maven
 仓库上传接口。两者默认值通常无需修改，并且必须配置为绝对的 HTTP(S) URL。快照发布复用
-`mavenCentral` 凭据；凭据在发布任务执行时注入，不会在配置阶段要求提供。
+`mavenCentral` 凭据；凭据在发布任务执行时注入，不会在配置阶段要求提供。由于 `maven-publish`
+不会在配置缓存中保留发布仓库，快照发布任务不参与配置缓存：运行快照发布时 Gradle 会提示任务不兼容并
+丢弃缓存条目，但普通构建仍可正常复用配置缓存。
 
 参考：[Portal Snapshots](https://central.sonatype.org/publish/publish-portal-snapshots/)。
 

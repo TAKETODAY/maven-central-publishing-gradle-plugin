@@ -16,14 +16,21 @@
 
 package cn.taketoday.publishing;
 
+import com.sun.net.httpserver.HttpServer;
+
 import org.gradle.testkit.runner.BuildResult;
 import org.gradle.testkit.runner.GradleRunner;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Base64;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.zip.ZipFile;
 
 import static cn.taketoday.publishing.MavenCentralPublishingPlugin.PUBLISHING_DIRECTORY_NAME;
@@ -399,7 +406,7 @@ class MavenCentralPublishingPluginIntegrationTests {
   }
 
   @Test
-  void snapshotDryRunSupportsConfigurationCache() throws IOException {
+  void snapshotPublishTasksOptOutOfConfigurationCache() throws IOException {
     write("settings.gradle", "rootProject.name = 'snapshot-cache'");
     write("build.gradle", """
             plugins { id 'cn.taketoday.maven-central-publishing'; id 'java' }
@@ -409,10 +416,60 @@ class MavenCentralPublishingPluginIntegrationTests {
             }
             """);
 
-    BuildResult first = run("publishToMavenCentral", "--configuration-cache", "--dry-run");
-    assertThat(first.getOutput()).contains("Configuration cache entry stored");
-    BuildResult second = run("publishToMavenCentral", "--configuration-cache", "--dry-run");
-    assertThat(second.getOutput()).contains("Reusing configuration cache");
+    BuildResult result = run("publishToMavenCentral", "--configuration-cache", "--dry-run");
+    assertThat(result.getOutput())
+            .contains("Configuration cache entry discarded because incompatible task was found")
+            .contains("publishMavenPublicationToMavenCentralSnapshotsRepository");
+  }
+
+  @Test
+  void publishesSnapshotsWithCredentialsResolvedAtExecutionTime() throws IOException {
+    List<String> authorizations = new CopyOnWriteArrayList<>();
+    HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+    server.createContext("/", exchange -> {
+      exchange.getRequestBody().readAllBytes();
+      if ("PUT".equals(exchange.getRequestMethod())) {
+        authorizations.add(String.valueOf(exchange.getRequestHeaders().getFirst("Authorization")));
+        exchange.sendResponseHeaders(201, -1);
+      }
+      else {
+        exchange.sendResponseHeaders(404, -1);
+      }
+      exchange.close();
+    });
+    server.start();
+    try {
+      int port = server.getAddress().getPort();
+      write("settings.gradle", "rootProject.name = 'snapshot-publish'");
+      write("build.gradle", """
+              plugins { id 'cn.taketoday.maven-central-publishing'; id 'java' }
+              group = 'example'
+              version = '1.0-SNAPSHOT'
+              publishing {
+                publications { maven(MavenPublication) { from components.java } }
+              }
+              mavenCentral {
+                snapshotRepositoryUrl = uri('http://127.0.0.1:%d/')
+                credentials {
+                  username = 'test-user'
+                  password = 'test-password'
+                }
+              }
+              """.formatted(port));
+
+      BuildResult result = run("publishToMavenCentral", "--configuration-cache");
+
+      assertThat(result.getOutput())
+              .contains("Configuration cache entry discarded because incompatible task was found");
+      assertThat(authorizations)
+              .isNotEmpty()
+              .allSatisfy(authorization -> assertThat(authorization).isEqualTo(
+                      "Basic " + Base64.getEncoder().encodeToString(
+                              "test-user:test-password".getBytes(StandardCharsets.UTF_8))));
+    }
+    finally {
+      server.stop(0);
+    }
   }
 
   @Test
