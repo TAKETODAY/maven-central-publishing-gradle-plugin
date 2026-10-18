@@ -1,5 +1,7 @@
 # Maven Central Publishing Gradle Plugin
 
+[English](./README.en.md)
+
 一个面向 Gradle 的 Maven Central Publisher API 发布插件，支持：
 
 - 正式版本上传到 Maven Central Portal，并自动轮询部署状态；
