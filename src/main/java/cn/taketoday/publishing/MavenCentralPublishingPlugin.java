@@ -64,32 +64,44 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
 
   private static final Logger log = Logging.getLogger(MavenCentralPublishingPlugin.class);
 
+  /** The name of the local repository used to stage release publications. */
   public static final String STAGING_REPOSITORY_NAME = "mavenCentralStaging";
 
+  /** The name of the task that creates the ZIP bundle. */
   private static final String ZIP_BUNDLE_TASK_NAME = "mavenCentralZipBundle";
 
+  /** The name of the task that creates the TAR.GZ bundle. */
   private static final String TAR_GZ_BUNDLE_TASK_NAME = "mavenCentralTarGzBundle";
 
+  /** The name of the task that creates the configured Maven Central bundle. */
   public static final String BUNDLE_TASK_NAME = "mavenCentralBundle";
 
+  /** The name of the task that uploads the Maven Central bundle. */
   public static final String UPLOAD_BUNDLE_TASK_NAME = "uploadMavenCentralBundle";
 
+  /** The name of the lifecycle task that publishes to Maven Central. */
   public static final String PUBLISH_TO_MAVEN_CENTRAL_TASK_NAME = "publishToMavenCentral";
 
+  /** The name of the repository used to publish SNAPSHOT versions. */
   public static final String SNAPSHOT_REPOSITORY_NAME = "mavenCentralSnapshots";
 
+  /** The suffix that identifies a SNAPSHOT version. */
   public static final String SNAPSHOT_VERSION_SUFFIX = "-SNAPSHOT";
 
+  /** The name of the build directory that contains Maven Central publishing output. */
   public static final String PUBLISHING_DIRECTORY_NAME = "maven-central-publishing";
 
+  /** The name of the directory that contains the local staging repository. */
   public static final String STAGING_REPOSITORY_DIRECTORY_NAME = "staging-repository";
 
+  /** The name of the file that stores the Maven Central deployment identifier. */
   public static final String DEPLOYMENT_ID_FILE_NAME = "deployment-id.txt";
 
-  // publishAllPublicationsToMavenCentralStagingRepository task
+  /** The name of the task that publishes all publications to the staging repository. */
   private static final String publishAllPublicationsToMavenCentralStagingRepository =
           "publishAllPublicationsTo" + capitalize(STAGING_REPOSITORY_NAME) + "Repository";
 
+  /** The name of the task that publishes all publications to the snapshots repository. */
   private static final String publishAllPublicationsToMavenCentralSnapshotsRepository =
           "publishAllPublicationsTo" + capitalize(SNAPSHOT_REPOSITORY_NAME) + "Repository";
 
