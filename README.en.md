@@ -27,15 +27,36 @@ plugins {
 }
 ```
 
-In subprojects, apply `maven-publish` and declare at least one publication:
+In subprojects, apply `maven-publish` and declare at least one `MavenPublication`. With the `java` / `java-library`
+plugin, publish from `components.java`:
 
 ```groovy
-apply plugin: 'maven-publish'
+plugins {
+  id 'java-library'
+  id 'maven-publish'
+}
 
 publishing {
   publications {
-    maven(MavenPublication) {
+    mavenJava(MavenPublication) {
       from components.java
+    }
+  }
+}
+```
+
+When using the `java-platform` plugin to publish constraints, use `components.javaPlatform`:
+
+```groovy
+plugins {
+  id 'java-platform'
+  id 'maven-publish'
+}
+
+publishing {
+  publications {
+    javaPlatform(MavenPublication) {
+      from components.javaPlatform
     }
   }
 }
@@ -47,11 +68,13 @@ Run the following command from the root project to publish all publications, inc
 ./gradlew publishToMavenCentral
 ```
 
-Release versions are first written to the root project's `build/publishing/staging-repository`, then packaged
+Release versions are first written to the root project's `build/maven-central-publishing/staging-repository`, then packaged
 and uploaded as a bundle. `-SNAPSHOT` versions automatically use the Maven Central Snapshots repository;
 see [Snapshot Publishing](#snapshot-publishing).
 
 ## Credentials
+
+<a id="credentials"></a>
 
 Create a user token in [Maven Central Portal](https://central.sonatype.com/account) first. By default, the plugin
 reads the Gradle project properties `mavenCentralUsername` and `mavenCentralPassword`.
@@ -91,6 +114,10 @@ mavenCentral {
 }
 ```
 
+> **Security note**: never commit the token into the project or the repository. `-P` command-line arguments may
+> leak into shell history and process listings, so use them only for local, throwaway tests. Prefer CI secrets,
+> environment variables (`ORG_GRADLE_PROJECT_*`), or the user-level `~/.gradle/gradle.properties`.
+
 ## Publishing Configuration
 
 Configure release publishing through the `mavenCentral {}` extension:
@@ -116,32 +143,41 @@ mavenCentral {
   statusRequestInterval = Duration.ofSeconds(3)
   maxStatusRetries = 3
   maxDeploymentWait = Duration.ofMinutes(60)
-  publisherUrl = uri('https://central.sonatype.com/')
-  snapshotRepositoryUrl = uri('https://central.sonatype.com/repository/maven-snapshots/')
+  publisherUrl = uri('https://central.sonatype.com')
+  snapshotRepositoryUrl = uri('https://central.sonatype.com/repository/maven-snapshots')
   deploymentName = "${group}:${project.name}:${version}"
 }
 ```
 
 ### Configuration options
 
-| Option                    | Default                                                    | Description                                                                                                                  |
-|---------------------------|------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------|
-| `publishingType`          | `AUTOMATIC`                                                | `AUTOMATIC` publishes after validation; `USER_MANAGED` waits for manual publication                                          |
-| `credentials`             | Gradle `mavenCentral` credentials                          | `PasswordCredentials`; defaults to `mavenCentralUsername` / `mavenCentralPassword`                                           |
-| `waitUntilFullyPublished` | `false`                                                    | In automatic mode, wait for `PUBLISHED`; otherwise finish at `PUBLISHING`. Ignored in `USER_MANAGED` mode                    |
-| `statusRequestInterval`   | 1 second                                                   | Delay between deployment status requests and retries; must be at least 1 millisecond                                         |
-| `maxStatusRetries`        | `3`                                                        | Number of retries after consecutive status request failures; `0` disables retries and a successful response resets the count |
-| `maxDeploymentWait`       | 60 minutes                                                 | Maximum time to wait for the deployment to reach its target state; a non-positive value disables the timeout                 |
-| `publisherUrl`            | `https://central.sonatype.com/`                            | Maven Central Publisher API URL                                                                                              |
-| `snapshotRepositoryUrl`   | `https://central.sonatype.com/repository/maven-snapshots/` | Maven Central Snapshots repository URL                                                                                       |
-| `deploymentName`          | `group:name:version`                                       | Name displayed for the deployment in Portal                                                                                  |
+| Option                    | Default                                                   | Description                                                                                                                  |
+|---------------------------|-----------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------|
+| `publishingType`          | `AUTOMATIC`                                               | `AUTOMATIC` publishes after validation; `USER_MANAGED` waits for manual publication                                          |
+| `credentials`             | Gradle `mavenCentral` credentials                         | `PasswordCredentials`; defaults to `mavenCentralUsername` / `mavenCentralPassword`                                           |
+| `waitUntilFullyPublished` | `false`                                                   | In automatic mode, wait for `PUBLISHED`; otherwise finish at `PUBLISHING`. Ignored in `USER_MANAGED` mode                    |
+| `statusRequestInterval`   | 1 second                                                  | Delay between deployment status requests and retries; must be at least 1 millisecond                                         |
+| `maxStatusRetries`        | `3`                                                       | Number of retries after consecutive status request failures; `0` disables retries and a successful response resets the count |
+| `maxDeploymentWait`       | 60 minutes                                                | Maximum time to wait for the deployment to reach its target state; a non-positive value disables the timeout                 |
+| `publisherUrl`            | `https://central.sonatype.com`                            | Maven Central Publisher API URL                                                                                              |
+| `snapshotRepositoryUrl`   | `https://central.sonatype.com/repository/maven-snapshots` | Maven Central Snapshots repository URL                                                                                       |
+| `deploymentName`          | `group:name:version`                                      | Name displayed for the deployment in Portal                                                                                  |
 
 `bundle.format` supports `BundleFormat.ZIP` (the default) and `BundleFormat.TAR_GZ`. The `archiveFileName` should
 match the selected format, for example `bundle.zip` or `bundle.tar.gz`. The output directory defaults to
-`build/publishing` and can be customized with `bundle.destinationDirectory`.
+`build/maven-central-publishing` and can be customized with `bundle.destinationDirectory`.
 
-`publisherUrl` and `snapshotRepositoryUrl` configure the Portal API and the Snapshots repository independently.
-Normally, their default values do not need to be changed.
+#### Publisher and snapshots URLs
+
+`publisherUrl` and `snapshotRepositoryUrl` control the release and snapshots targets independently:
+
+- `publisherUrl`: the Portal Publisher API used when uploading release bundles; defaults to
+  `https://central.sonatype.com`;
+- `snapshotRepositoryUrl`: the Maven Snapshots repository used when publishing `-SNAPSHOT` versions; defaults to
+  `https://central.sonatype.com/repository/maven-snapshots`.
+
+Changing `publisherUrl` does not affect snapshots publishing, and vice versa. Their defaults normally never need to
+be changed; configure them only to point at a self-hosted or proxied service, and always use absolute HTTP (S) URLs.
 
 ### Publishing modes
 
@@ -159,6 +195,21 @@ for a deployment to complete. For long-running deployments, increase the polling
 an unlimited number of retries.
 
 See the [Maven Central Publisher API documentation](https://central.sonatype.org/publish/publish-portal-api/).
+
+## Release Checklist
+
+Before publishing a release, verify that:
+
+1. the root project uses a `group` and a non-`-SNAPSHOT` version;
+2. at least one `MavenPublication` is declared (`java`, `java-library`, or `java-platform`);
+3. the namespace is available on the Maven Central Portal [Namespaces](https://central.sonatype.com/publishing/namespaces) page;
+4. a Maven Central user token has been created and configured (see [Credentials](#credentials));
+5. `publishToMavenCentral --dry-run` succeeds;
+6. if signing is required, configure `signingKey`, `signingKeyId`, and `signingPassword` (signing is a prerequisite
+   for publishing to the central repository);
+7. optionally, generate a bundle locally and inspect its contents first (see [Multi-Module Publishing](#multi-module-publishing)).
+
+<a id="snapshot-publishing"></a>
 
 ## Snapshot Publishing
 
@@ -180,16 +231,21 @@ repository names and must not be declared by users.
 
 See the [Portal Snapshots documentation](https://central.sonatype.org/publish/publish-portal-snapshots/).
 
+<a id="multi-module-publishing"></a>
+
 ## Multi-Module Publishing
 
-After project evaluation, the plugin scans all subprojects. Any subproject that applies `maven-publish` and declares
-at least one `MavenPublication` is included automatically, including `java` and `java-platform` projects:
+After project evaluation, the plugin scans all subprojects. The root project version decides the publishing mode
+for this build: when it ends with `-SNAPSHOT`, the root project and all subprojects publish snapshots directly;
+otherwise, every project goes through the release staging and Portal bundle chain. Even if a subproject sets a
+different version, it does not change the publishing mode of this build. Any subproject that applies `maven-publish`
+and declares at least one `MavenPublication` is included automatically, including `java` and `java-platform` projects:
 
 ```text
 Subproject publications
           │
           ▼
-Shared staging repository: build/publishing/staging-repository
+Shared staging repository: build/maven-central-publishing/staging-repository
           │
           ▼
 Root project creates the bundle
@@ -243,6 +299,16 @@ clean or republish artifacts. To stage artifacts first and then create a local b
 | `mavenCentralBundle`                                    | Package the current staging directory as ZIP or TAR.GZ                                        |
 | `uploadMavenCentralBundle`                              | Upload the current bundle and poll deployment status                                          |
 | `publishAllPublicationsToMavenCentralStagingRepository` | Stage all publications in the local staging repository                                        |
+
+In the task name, `<Publication>` is the publication name with its first letter capitalized. For example, given a
+publication named `mavenJava`, the single-publication task is:
+
+```shell
+./gradlew publishMavenJavaPublicationToMavenCentral
+```
+
+This task publishes only the selected root-project publication; subproject publications are not selected by this
+entry point.
 
 ## Debug Logging
 
