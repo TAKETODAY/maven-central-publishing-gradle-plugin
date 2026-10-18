@@ -33,6 +33,12 @@ import infra.web.client.ClientResponse;
 import infra.web.client.RestClient;
 
 /**
+ * Client for the Maven Central Publisher API.
+ *
+ * <p>This is an internal implementation detail used by
+ * {@link MavenCentralUploadTask}; it is not intended to be used directly by
+ * build scripts.</p>
+ *
  * @author <a href="https://github.com/TAKETODAY">海子 Yang</a>
  * @since 0.0.1
  */

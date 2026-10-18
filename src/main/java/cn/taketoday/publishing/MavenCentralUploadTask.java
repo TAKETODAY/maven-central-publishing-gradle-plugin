@@ -49,7 +49,8 @@ public abstract class MavenCentralUploadTask extends DefaultTask {
   private final MavenCentralExtension configuration;
 
   /**
-   * Returns the ZIP bundle containing the Maven publications to upload.
+   * Returns the bundle archive containing the Maven publications to upload.
+   * The archive format is controlled by {@link MavenCentralExtension.BundleOptions}.
    *
    * @return the Maven Central bundle file
    */
@@ -68,7 +69,7 @@ public abstract class MavenCentralUploadTask extends DefaultTask {
   }
 
   /**
-   * Returns the file in which the Maven Central deployment ID is written.
+   * Returns the file in which the Maven Central deployment ID is written after upload.
    *
    * @return the deployment ID output file
    */
@@ -87,7 +88,8 @@ public abstract class MavenCentralUploadTask extends DefaultTask {
   }
 
   /**
-   * Uploads the configured bundle and monitors the resulting deployment.
+   * Uploads the configured bundle and monitors the resulting deployment until it
+   * reaches the configured terminal state.
    *
    * @throws Exception if uploading fails or Maven Central reports a failed deployment
    */

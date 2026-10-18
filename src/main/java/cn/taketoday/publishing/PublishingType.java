@@ -17,16 +17,20 @@
 package cn.taketoday.publishing;
 
 /**
- * Maven Central deployment publishing modes.
+ * Maven Central deployment publishing modes used by the Publisher API.
  *
  * @author <a href="https://github.com/TAKETODAY">海子 Yang</a>
  * @since 0.0.4
  */
 public enum PublishingType {
 
-  /** Publish automatically after validation. */
+  /**
+   * Publish the deployment automatically after validation succeeds.
+   */
   AUTOMATIC,
 
-  /** Wait for manual publication after validation. */
+  /**
+   * Leave the validated deployment awaiting manual publication.
+   */
   USER_MANAGED
 }

@@ -31,7 +31,11 @@ import javax.inject.Inject;
 import groovy.lang.Closure;
 
 /**
- * Configures Maven Central publishing defaults for this project.
+ * Configures Maven Central publishing for this project.
+ *
+ * <p>The extension is exposed as {@code mavenCentral} and controls bundle creation,
+ * Portal deployment, deployment status polling, and the credentials used by both
+ * release and snapshot publishing.</p>
  *
  * @author <a href="https://github.com/TAKETODAY">海子 Yang</a>
  * @since 0.0.4
@@ -61,21 +65,28 @@ public abstract class MavenCentralExtension {
   }
 
   /**
-   * Returns AUTOMATIC or USER_MANAGED (default: AUTOMATIC).
+   * Returns the deployment mode (default: {@link PublishingType#AUTOMATIC}).
+   *
+   * <p>{@code AUTOMATIC} asks Maven Central to publish the deployment after
+   * validation. {@code USER_MANAGED} leaves the deployment awaiting manual
+   * publication.</p>
    *
    * @return the publishing type
    */
   public abstract Property<PublishingType> getPublishingType();
 
   /**
-   * Returns the Portal token credentials, defaulting to the mavenCentral Gradle credentials.
+   * Returns the credentials used to authenticate with Maven Central.
+   *
+   * <p>When not configured explicitly, the value is obtained from the Gradle
+   * {@code mavenCentral} credentials.</p>
    *
    * @return the token credentials
    */
   public abstract Property<PasswordCredentials> getCredentials();
 
   /**
-   * Configures explicit Portal token credentials.
+   * Configures explicit Maven Central credentials.
    *
    * @param action the credentials configuration
    */
@@ -94,53 +105,56 @@ public abstract class MavenCentralExtension {
   protected abstract ObjectFactory getObjects();
 
   /**
-   * Returns whether to wait for PUBLISHED instead of PUBLISHING (default: false).
-   * Ignored when automatic publishing is disabled.
+   * Returns whether to wait for {@code PUBLISHED} instead of {@code PUBLISHING}
+   * (default: {@code false}). This setting is used only for automatic publishing.
    *
    * @return the fully published waiting flag
    */
   public abstract Property<Boolean> getWaitUntilFullyPublished();
 
   /**
-   * Returns the positive interval between status requests (default: one second).
+   * Returns the interval between deployment status requests (default: one second).
+   * The value must be at least one millisecond.
    *
    * @return the status request interval
    */
   public abstract Property<Duration> getStatusRequestInterval();
 
   /**
-   * Returns retries allowed after consecutive status failures (default: three).
-   * Zero disables retries; a successful request resets the failure count.
+   * Returns the number of retries allowed after consecutive status request failures
+   * (default: three). Zero disables retries; a successful request resets the failure
+   * count.
    *
    * @return the nonnegative retry limit
    */
   public abstract Property<Integer> getMaxStatusRetries();
 
   /**
-   * Returns the maximum time to wait for a deployment to reach a terminal
-   * state (default: thirty minutes). A nonpositive duration disables the
-   * timeout, letting the task poll indefinitely.
+   * Returns the maximum time to wait for a deployment to reach a terminal state
+   * (default: 60 minutes). A nonpositive duration disables the timeout, allowing
+   * the task to poll indefinitely.
    *
    * @return the deployment wait timeout
    */
   public abstract Property<Duration> getMaxDeploymentWait();
 
   /**
-   * Returns the Publisher API base URL (default: https://central.sonatype.com/).
+   * Returns the Maven Central Publisher API base URL
+   * (default: {@code https://central.sonatype.com/}).
    *
    * @return the API base URL
    */
   public abstract Property<URI> getBaseUrl();
 
   /**
-   * Returns the deployment name (default: project group:name:version).
+   * Returns the deployment name (default: {@code group:name:version}).
    *
    * @return the deployment name
    */
   public abstract Property<String> getDeploymentName();
 
   /**
-   * Returns the Maven Central bundle options.
+   * Returns the options used to create the Maven Central bundle archive.
    *
    * @return bundle options
    */
@@ -167,7 +181,7 @@ public abstract class MavenCentralExtension {
   }
 
   /**
-   * Configures the Maven Central bundle archive.
+   * Options for the Maven Central bundle archive.
    */
   public static class BundleOptions {
 
@@ -184,7 +198,7 @@ public abstract class MavenCentralExtension {
     }
 
     /**
-     * Returns the archive format.
+     * Returns the archive format used for the bundle.
      *
      * @return the archive format
      */
@@ -193,7 +207,7 @@ public abstract class MavenCentralExtension {
     }
 
     /**
-     * Returns the archive file name.
+     * Returns the name of the generated archive file.
      *
      * @return the archive file name
      */
@@ -202,7 +216,7 @@ public abstract class MavenCentralExtension {
     }
 
     /**
-     * Returns the archive destination directory.
+     * Returns the directory in which the generated archive is written.
      *
      * @return the archive destination directory
      */
