@@ -11,7 +11,7 @@
 
 - 插件入口是 `cn.taketoday.publishing.MavenCentralPublishingPlugin`，插件 ID 为 `cn.taketoday.maven-central-publishing`。
 - `src/main/java` 实现发布插件、Maven Central 上传任务和 HTTP API；`src/test/java` 目前主要覆盖 Publisher API 的 HTTP 行为。
-- 插件先发布到本地 `build/publishing/staging-repository`，再打包为 `build/publishing/bundle.zip`，最终由 `uploadMavenCentralBundle` 上传；相关任务由 `publishToMavenCentral` 汇总。
+- 插件先发布到本地 `build/maven-central-publishing/staging-repository`，再打包为 `build/maven-central-publishing/bundle.zip`，最终由 `uploadMavenCentralBundle` 上传；相关任务由 `publishToMavenCentral` 汇总。
 
 ## 发布
 

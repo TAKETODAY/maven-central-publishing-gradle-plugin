@@ -39,6 +39,8 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import static cn.taketoday.publishing.MavenCentralPublishingPlugin.PUBLISHING_DIRECTORY_NAME;
+import static cn.taketoday.publishing.MavenCentralPublishingPlugin.STAGING_REPOSITORY_DIRECTORY_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class MavenCentralPublishingPluginTests {
@@ -67,7 +69,7 @@ class MavenCentralPublishingPluginTests {
     assertThat(project.getPluginManager().hasPlugin("maven-publish")).isTrue();
     var publishing = project.getExtensions().getByType(PublishingExtension.class);
     var repository = (MavenArtifactRepository) publishing.getRepositories().getByName("mavenCentralStaging");
-    assertThat(repository.getUrl()).isEqualTo(directory.resolve("build/publishing/staging-repository").toUri());
+    assertThat(repository.getUrl()).isEqualTo(directory.resolve("build").resolve(PUBLISHING_DIRECTORY_NAME).resolve(STAGING_REPOSITORY_DIRECTORY_NAME).toUri());
   }
 
   @Test
@@ -113,7 +115,7 @@ class MavenCentralPublishingPluginTests {
     assertThat(tar.getOnlyIf().isSatisfiedBy(tar)).isEqualTo(format == BundleFormat.TAR_GZ);
     assertThat(tar.getCompression()).isEqualTo(Compression.GZIP);
     assertThat(upload.getBundleFile().get().getAsFile())
-            .isEqualTo(directory.resolve("build/publishing/" + format.getDefaultFileName()).toFile());
+            .isEqualTo(directory.resolve("build").resolve(PUBLISHING_DIRECTORY_NAME).resolve(format.getDefaultFileName()).toFile());
     assertThat(upload.getTaskDependencies().getDependencies(upload))
             .extracting(Task::getName).contains(format == BundleFormat.ZIP ? zip.getName() : tar.getName());
   }
@@ -134,7 +136,8 @@ class MavenCentralPublishingPluginTests {
 
   @Test
   void archivesExcludeRepositoryMetadataButRetainArtifactsAndChecksums() throws Exception {
-    Path staging = directory.resolve("build/publishing/staging-repository/example/library");
+    Path staging = directory.resolve("build").resolve(PUBLISHING_DIRECTORY_NAME)
+            .resolve(STAGING_REPOSITORY_DIRECTORY_NAME).resolve("example/library");
     Files.createDirectories(staging.resolve("1.0"));
     Files.writeString(staging.resolve("maven-metadata.xml"), "metadata");
     Files.writeString(staging.resolve("maven-metadata.xml.sha256"), "checksum");
@@ -149,10 +152,10 @@ class MavenCentralPublishingPluginTests {
 
   @Test
   void cleaningStagingRepositoryPreservesExistingBundle() throws Exception {
-    Path staging = directory.resolve("build/publishing/staging-repository");
+    Path staging = directory.resolve("build").resolve(PUBLISHING_DIRECTORY_NAME).resolve(STAGING_REPOSITORY_DIRECTORY_NAME);
     Files.createDirectories(staging);
     Files.writeString(staging.resolve("stale.pom"), "stale publication");
-    Path bundle = Files.writeString(directory.resolve("build/publishing/bundle.zip"), "previous bundle");
+    Path bundle = Files.writeString(directory.resolve("build").resolve(PUBLISHING_DIRECTORY_NAME).resolve("bundle.zip"), "previous bundle");
 
     Delete clean = (Delete) task("cleanMavenCentralStagingRepository");
     clean.getActions().forEach(action -> action.execute(clean));

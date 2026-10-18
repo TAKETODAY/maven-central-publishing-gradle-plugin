@@ -26,6 +26,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.zip.ZipFile;
 
+import static cn.taketoday.publishing.MavenCentralPublishingPlugin.PUBLISHING_DIRECTORY_NAME;
+import static cn.taketoday.publishing.MavenCentralPublishingPlugin.STAGING_REPOSITORY_DIRECTORY_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -318,7 +320,7 @@ class MavenCentralPublishingPluginIntegrationTests {
             """);
     Files.createDirectories(directory.resolve("library/src/main/java/example"));
     Files.createDirectories(directory.resolve("plain/src/main/java/example"));
-    Path stagingRepository = directory.resolve("build/publishing/staging-repository");
+    Path stagingRepository = directory.resolve("build").resolve(PUBLISHING_DIRECTORY_NAME).resolve(STAGING_REPOSITORY_DIRECTORY_NAME);
     Files.createDirectories(stagingRepository);
     Files.writeString(stagingRepository.resolve("stale.txt"), "previous publication");
 
@@ -329,7 +331,7 @@ class MavenCentralPublishingPluginIntegrationTests {
     assertThat(stagingRepository.resolve("com/example/plain")).doesNotExist();
     assertThat(result.getOutput())
             .doesNotContain(":plain:publishAllPublicationsToMavenCentralStagingRepository");
-    assertThat(directory.resolve("build/publishing/bundle.zip")).exists();
+    assertThat(directory.resolve("build").resolve(PUBLISHING_DIRECTORY_NAME).resolve("bundle.zip")).exists();
   }
 
   @Test
@@ -473,7 +475,7 @@ class MavenCentralPublishingPluginIntegrationTests {
             """);
     Files.createDirectories(directory.resolve("library"));
     Files.createDirectories(directory.resolve("other"));
-    Path staging = directory.resolve("build/publishing/staging-repository");
+    Path staging = directory.resolve("build").resolve(PUBLISHING_DIRECTORY_NAME).resolve(STAGING_REPOSITORY_DIRECTORY_NAME);
     Files.createDirectories(staging);
     Files.writeString(staging.resolve("stale.txt"), "previous publication");
 
@@ -481,7 +483,7 @@ class MavenCentralPublishingPluginIntegrationTests {
 
     assertThat(result.task(":cleanMavenCentralStagingRepository")).isNotNull();
     assertThat(staging.resolve("stale.txt")).doesNotExist();
-    try (ZipFile zip = new ZipFile(directory.resolve("build/publishing/bundle.zip").toFile())) {
+    try (ZipFile zip = new ZipFile(directory.resolve("build").resolve(PUBLISHING_DIRECTORY_NAME).resolve("bundle.zip").toFile())) {
       for (String module : new String[] { "aggregate", "library", "other" }) {
         String artifact = "com/example/" + module + "/1.0.0/" + module + "-1.0.0.jar";
         assertThat(staging.resolve(artifact)).exists();
@@ -534,7 +536,7 @@ class MavenCentralPublishingPluginIntegrationTests {
                 repositories {
                   maven {
                     name = 'mavenCentralStaging'
-                    url = rootProject.layout.buildDirectory.dir('publishing/staging-repository')
+                    url = rootProject.layout.buildDirectory.dir('maven-central-publishing/staging-repository')
                   }
                 }
                 publications { maven(MavenPublication) { groupId = 'example'; artifactId = 'library'; version = '1.0' } }
@@ -605,9 +607,10 @@ class MavenCentralPublishingPluginIntegrationTests {
       assertThat(first.getOutput()).contains("Configuration cache entry stored");
       BuildResult second = run("publishAllPublicationsToMavenCentralStagingRepository", "mavenCentralBundle", "--configuration-cache", "--rerun-tasks");
       assertThat(second.getOutput()).contains("Reusing configuration cache");
-      assertThat(directory.resolve("build/publishing/" + (format.equals("ZIP") ? "bundle.zip" : "bundle.tar.gz"))).exists();
+      assertThat(directory.resolve("build").resolve(PUBLISHING_DIRECTORY_NAME)
+              .resolve(format.equals("ZIP") ? "bundle.zip" : "bundle.tar.gz")).exists();
       if (format.equals("ZIP")) {
-        try (ZipFile zip = new ZipFile(directory.resolve("build/publishing/bundle.zip").toFile())) {
+        try (ZipFile zip = new ZipFile(directory.resolve("build").resolve(PUBLISHING_DIRECTORY_NAME).resolve("bundle.zip").toFile())) {
           assertThat(zip.getEntry("example/library/1.0/library-1.0.jar")).isNotNull();
         }
       }
@@ -657,7 +660,7 @@ class MavenCentralPublishingPluginIntegrationTests {
   }
 
   private void assertSharedBundle(String... modules) throws IOException {
-    try (ZipFile zip = new ZipFile(directory.resolve("build/publishing/bundle.zip").toFile())) {
+    try (ZipFile zip = new ZipFile(directory.resolve("build").resolve(PUBLISHING_DIRECTORY_NAME).resolve("bundle.zip").toFile())) {
       assertThat(zip.stream().map(entry -> entry.getName()).filter(name -> name.endsWith(".jar")))
               .containsExactlyInAnyOrder(java.util.Arrays.stream(modules)
                       .map(module -> "example/" + module + "/1.0/" + module + "-1.0.jar").toArray(String[]::new));

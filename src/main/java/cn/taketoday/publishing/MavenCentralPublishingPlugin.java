@@ -64,21 +64,27 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
 
   private static final Logger log = Logging.getLogger(MavenCentralPublishingPlugin.class);
 
-  private static final String STAGING_REPOSITORY_NAME = "mavenCentralStaging";
+  public static final String STAGING_REPOSITORY_NAME = "mavenCentralStaging";
 
   private static final String ZIP_BUNDLE_TASK_NAME = "mavenCentralZipBundle";
 
   private static final String TAR_GZ_BUNDLE_TASK_NAME = "mavenCentralTarGzBundle";
 
-  private static final String BUNDLE_TASK_NAME = "mavenCentralBundle";
+  public static final String BUNDLE_TASK_NAME = "mavenCentralBundle";
 
-  private static final String UPLOAD_BUNDLE_TASK_NAME = "uploadMavenCentralBundle";
+  public static final String UPLOAD_BUNDLE_TASK_NAME = "uploadMavenCentralBundle";
 
-  private static final String PUBLISH_TO_MAVEN_CENTRAL_TASK_NAME = "publishToMavenCentral";
+  public static final String PUBLISH_TO_MAVEN_CENTRAL_TASK_NAME = "publishToMavenCentral";
 
-  private static final String SNAPSHOT_REPOSITORY_NAME = "mavenCentralSnapshots";
+  public static final String SNAPSHOT_REPOSITORY_NAME = "mavenCentralSnapshots";
 
-  private static final String SNAPSHOT_VERSION_SUFFIX = "-SNAPSHOT";
+  public static final String SNAPSHOT_VERSION_SUFFIX = "-SNAPSHOT";
+
+  public static final String PUBLISHING_DIRECTORY_NAME = "maven-central-publishing";
+
+  public static final String STAGING_REPOSITORY_DIRECTORY_NAME = "staging-repository";
+
+  public static final String DEPLOYMENT_ID_FILE_NAME = "deployment-id.txt";
 
   // publishAllPublicationsToMavenCentralStagingRepository task
   private static final String publishAllPublicationsToMavenCentralStagingRepository =
@@ -122,8 +128,8 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
 
   private TaskProvider<?> registerReleasePublishing(Project rootProject, MavenCentralExtension extension) {
     validateUrl(extension.getPublisherUrl().get(), "publisherUrl");
-    Provider<Directory> outputDirectory = rootProject.getLayout().getBuildDirectory().dir("publishing");
-    Provider<Directory> stagingRepositoryDirectory = outputDirectory.map(it -> it.dir("staging-repository"));
+    Provider<Directory> outputDirectory = rootProject.getLayout().getBuildDirectory().dir(PUBLISHING_DIRECTORY_NAME);
+    Provider<Directory> stagingRepositoryDirectory = outputDirectory.map(it -> it.dir(STAGING_REPOSITORY_DIRECTORY_NAME));
     extension.getBundle().getDestinationDirectory().convention(outputDirectory);
 
     registerStagingRepository(rootProject, stagingRepositoryDirectory);
@@ -263,7 +269,7 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
       Provider<RegularFile> tarFile = project.getTasks().named(TAR_GZ_BUNDLE_TASK_NAME, Tar.class).flatMap(Tar::getArchiveFile);
       task.getBundleFile().set(extension.getBundle().getFormat()
               .flatMap(format -> format == BundleFormat.ZIP ? zipFile : tarFile));
-      task.getDeploymentIdFile().set(outputDirectory.map(it -> it.file("deployment-id.txt")));
+      task.getDeploymentIdFile().set(outputDirectory.map(it -> it.file(DEPLOYMENT_ID_FILE_NAME)));
     });
     return uploadTask;
   }
