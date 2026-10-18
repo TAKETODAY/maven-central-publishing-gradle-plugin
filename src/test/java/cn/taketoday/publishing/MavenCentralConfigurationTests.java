@@ -65,7 +65,9 @@ class MavenCentralConfigurationTests {
     assertThat(extension.getStatusRequestInterval().get()).isEqualTo(Duration.ofSeconds(1));
     assertThat(extension.getMaxStatusRetries().get()).isEqualTo(3);
     assertThat(extension.getMaxDeploymentWait().get()).isEqualTo(Duration.ofMinutes(60));
-    assertThat(extension.getBaseUrl().get()).isEqualTo(URI.create("https://central.sonatype.com/"));
+    assertThat(extension.getBaseUrl().get()).isEqualTo(URI.create("https://central.sonatype.com"));
+    assertThat(extension.getSnapshotRepositoryUrl().get())
+            .isEqualTo(URI.create("https://central.sonatype.com/repository/maven-snapshots"));
 
     extension.credentials(credentials -> {
       credentials.setUsername("custom-user");
@@ -137,7 +139,7 @@ class MavenCentralConfigurationTests {
 
   @ParameterizedTest
   @CsvSource({ "AUTOMATIC,false,PUBLISHING", "AUTOMATIC,false,PUBLISHED",
-      "AUTOMATIC,true,PUBLISHED", "USER_MANAGED,false,VALIDATED", "USER_MANAGED,true,VALIDATED" })
+          "AUTOMATIC,true,PUBLISHED", "USER_MANAGED,false,VALIDATED", "USER_MANAGED,true,VALIDATED" })
   @Timeout(10)
   void completesAtExpectedState(PublishingType type, boolean waitUntilPublished, String state) throws Exception {
     AtomicInteger requests = new AtomicInteger();

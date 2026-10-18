@@ -417,7 +417,7 @@ class MavenCentralPublishingPluginIntegrationTests {
             .withArguments("mavenCentralBundle", "--no-configuration-cache")
             .buildAndFail();
 
-    assertThat(result.getOutput()).contains("mavenCentralStaging", ":library", "is reserved for");
+    assertThat(result.getOutput()).contains("mavenCentralStaging", "library", "is reserved for");
   }
 
   @Test

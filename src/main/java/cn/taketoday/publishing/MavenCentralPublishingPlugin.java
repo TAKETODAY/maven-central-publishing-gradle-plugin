@@ -77,8 +77,6 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
 
   private static final String SNAPSHOT_REPOSITORY_NAME = "mavenCentralSnapshots";
 
-  private static final String SNAPSHOT_REPOSITORY_URL = "https://central.sonatype.com/repository/maven-snapshots/";
-
   private static final String SNAPSHOT_VERSION_SUFFIX = "-SNAPSHOT";
 
   // publishAllPublicationsToMavenCentralStagingRepository task
@@ -375,7 +373,7 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
     }
     publishing.getRepositories().maven(repository -> {
       repository.setName(SNAPSHOT_REPOSITORY_NAME);
-      repository.setUrl(SNAPSHOT_REPOSITORY_URL);
+      repository.setUrl(extension.getSnapshotRepositoryUrl());
     });
     configureSnapshotCredentials(project);
   }

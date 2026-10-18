@@ -171,13 +171,15 @@ class MavenCentralPublishingPluginTests {
       credentials.setUsername("test-user");
       credentials.setPassword("test-password");
     });
+    URI customSnapshotRepositoryUrl = URI.create("https://repository.example.com/snapshots/");
+    snapshotExtension.getSnapshotRepositoryUrl().set(customSnapshotRepositoryUrl);
     var publishing = snapshotProject.getExtensions().getByType(PublishingExtension.class);
     publishing.getPublications().create("library", MavenPublication.class);
     ((ProjectInternal) snapshotProject).evaluate();
     new MavenCentralPublishingPlugin().configurePublishing(snapshotProject, snapshotExtension);
 
     var repository = (MavenArtifactRepository) publishing.getRepositories().getByName("mavenCentralSnapshots");
-    assertThat(repository.getUrl()).isEqualTo(URI.create("https://central.sonatype.com/repository/maven-snapshots/"));
+    assertThat(repository.getUrl()).isEqualTo(customSnapshotRepositoryUrl);
     assertThat(snapshotProject.getTasks().findByName("uploadMavenCentralBundle")).isNull();
     assertThat(snapshotProject.getTasks().findByName("mavenCentralBundle")).isNull();
     assertThat(snapshotProject.getTasks().findByName("mavenCentralStaging")).isNull();
