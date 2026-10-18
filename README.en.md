@@ -124,17 +124,17 @@ mavenCentral {
 
 ### Configuration options
 
-| Option | Default | Description |
-| --- | --- | --- |
-| `publishingType` | `AUTOMATIC` | `AUTOMATIC` publishes after validation; `USER_MANAGED` waits for manual publication |
-| `credentials` | Gradle `mavenCentral` credentials | `PasswordCredentials`; defaults to `mavenCentralUsername` / `mavenCentralPassword` |
-| `waitUntilFullyPublished` | `false` | In automatic mode, wait for `PUBLISHED`; otherwise finish at `PUBLISHING`. Ignored in `USER_MANAGED` mode |
-| `statusRequestInterval` | 1 second | Delay between deployment status requests and retries; must be at least 1 millisecond |
-| `maxStatusRetries` | `3` | Number of retries after consecutive status request failures; `0` disables retries and a successful response resets the count |
-| `maxDeploymentWait` | 60 minutes | Maximum time to wait for the deployment to reach its target state; a non-positive value disables the timeout |
-| `publisherUrl` | `https://central.sonatype.com/` | Maven Central Publisher API URL |
-| `snapshotRepositoryUrl` | `https://central.sonatype.com/repository/maven-snapshots/` | Maven Central Snapshots repository URL |
-| `deploymentName` | `group:name:version` | Name displayed for the deployment in Portal |
+| Option                    | Default                                                    | Description                                                                                                                  |
+|---------------------------|------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------|
+| `publishingType`          | `AUTOMATIC`                                                | `AUTOMATIC` publishes after validation; `USER_MANAGED` waits for manual publication                                          |
+| `credentials`             | Gradle `mavenCentral` credentials                          | `PasswordCredentials`; defaults to `mavenCentralUsername` / `mavenCentralPassword`                                           |
+| `waitUntilFullyPublished` | `false`                                                    | In automatic mode, wait for `PUBLISHED`; otherwise finish at `PUBLISHING`. Ignored in `USER_MANAGED` mode                    |
+| `statusRequestInterval`   | 1 second                                                   | Delay between deployment status requests and retries; must be at least 1 millisecond                                         |
+| `maxStatusRetries`        | `3`                                                        | Number of retries after consecutive status request failures; `0` disables retries and a successful response resets the count |
+| `maxDeploymentWait`       | 60 minutes                                                 | Maximum time to wait for the deployment to reach its target state; a non-positive value disables the timeout                 |
+| `publisherUrl`            | `https://central.sonatype.com/`                            | Maven Central Publisher API URL                                                                                              |
+| `snapshotRepositoryUrl`   | `https://central.sonatype.com/repository/maven-snapshots/` | Maven Central Snapshots repository URL                                                                                       |
+| `deploymentName`          | `group:name:version`                                       | Name displayed for the deployment in Portal                                                                                  |
 
 `bundle.format` supports `BundleFormat.ZIP` (the default) and `BundleFormat.TAR_GZ`. The `archiveFileName` should
 match the selected format, for example `bundle.zip` or `bundle.tar.gz`. The output directory defaults to
@@ -236,22 +236,22 @@ clean or republish artifacts. To stage artifacts first and then create a local b
 
 ## Common Tasks
 
-| Task | Purpose |
-| --- | --- |
-| `publishToMavenCentral` | Publish all publications; aggregate and upload a release bundle, or deploy snapshots directly |
-| `publish<Publication>PublicationToMavenCentral` | Publish only the selected root-project publication |
-| `mavenCentralBundle` | Package the current staging directory as ZIP or TAR.GZ |
-| `uploadMavenCentralBundle` | Upload the current bundle and poll deployment status |
-| `publishAllPublicationsToMavenCentralStagingRepository` | Stage all publications in the local staging repository |
+| Task                                                    | Purpose                                                                                       |
+|---------------------------------------------------------|-----------------------------------------------------------------------------------------------|
+| `publishToMavenCentral`                                 | Publish all publications; aggregate and upload a release bundle, or deploy snapshots directly |
+| `publish<Publication>PublicationToMavenCentral`         | Publish only the selected root-project publication                                            |
+| `mavenCentralBundle`                                    | Package the current staging directory as ZIP or TAR.GZ                                        |
+| `uploadMavenCentralBundle`                              | Upload the current bundle and poll deployment status                                          |
+| `publishAllPublicationsToMavenCentralStagingRepository` | Stage all publications in the local staging repository                                        |
 
 ## Debug Logging
 
 The plugin uses standard Gradle logging and requires no additional configuration:
 
-| Command | Output |
-| --- | --- |
-| Default | Regular Gradle output |
-| `./gradlew --info ...` | Staging repository location and the number of aggregated subproject publishing tasks |
+| Command                 | Output                                                                                      |
+|-------------------------|---------------------------------------------------------------------------------------------|
+| Default                 | Regular Gradle output                                                                       |
+| `./gradlew --info ...`  | Staging repository location and the number of aggregated subproject publishing tasks        |
 | `./gradlew --debug ...` | Aggregation and skip reasons for each subproject, plus plugin and task registration details |
 
 To inspect the publishing task graph without executing it:
