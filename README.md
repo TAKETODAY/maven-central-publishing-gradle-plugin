@@ -1,204 +1,31 @@
 # Maven Central Publishing Gradle Plugin
 
+一个面向 Gradle 的 Maven Central Publisher API 发布插件，支持：
+
+- 正式版本上传到 Maven Central Portal，并自动轮询部署状态；
+- `AUTOMATIC` 和 `USER_MANAGED` 两种发布模式；
+- `ZIP` / `TAR.GZ` bundle；
+- 根项目聚合多模块发布；
+- `-SNAPSHOT` 版本直接发布到 Maven Central Snapshots 仓库。
+
 ![Java17](https://img.shields.io/badge/JDK-17+-success.svg)
 [![Apache License 2.0](https://img.shields.io/github/license/TAKETODAY/maven-central-publishing-gradle-plugin?color=blue)](./LICENSE)
 [![Release](https://github.com/TAKETODAY/maven-central-publishing-gradle-plugin/actions/workflows/release.yaml/badge.svg)](https://github.com/TAKETODAY/maven-central-publishing-gradle-plugin/actions/workflows/release.yaml)
 [![CI](https://github.com/TAKETODAY/maven-central-publishing-gradle-plugin/actions/workflows/ci.yaml/badge.svg)](https://github.com/TAKETODAY/maven-central-publishing-gradle-plugin/actions/workflows/ci.yaml)
 
-### 发布配置
+## 快速开始
 
-通过 `mavenCentral` 配置块设置发布选项（此配置块在 0.0.3 之后的版本提供）：
+### 1. 在根项目应用插件
 
-```groovy
-import cn.taketoday.publishing.PublishingType
-import cn.taketoday.publishing.BundleFormat
-import java.time.Duration
-
-mavenCentral {
-  bundle {
-    format = BundleFormat.ZIP
-    archiveFileName = 'bundle.zip'
-  }
-  // 默认读取 mavenCentralUsername / mavenCentralPassword，也可映射其他属性
-  credentials {
-    username = providers.gradleProperty('myCentralUsername').get()
-    password = providers.gradleProperty('myCentralPassword').get()
-  }
-  publishingType = PublishingType.AUTOMATIC
-  waitUntilFullyPublished = true
-  statusRequestInterval = Duration.ofSeconds(3)
-  maxStatusRetries = 3
-  baseUrl = uri('https://central.sonatype.com/')
-  deploymentName = "${group}:${project.name}:${version}"
-}
-```
-
-| 选项                      | 默认值                          | 说明                                                                             |
-|---------------------------|---------------------------------|----------------------------------------------------------------------------------|
-| `publishingType`          | `AUTOMATIC`                     | `AUTOMATIC` 自动发布；`USER_MANAGED` 校验后等待手动发布                          |
-| `credentials`             | Gradle 凭据 `mavenCentral`      | `PasswordCredentials`，默认读取 `mavenCentralUsername` / `mavenCentralPassword`  |
-| `waitUntilFullyPublished` | `false`                         | `true` 时等待 `PUBLISHED`；默认到 `PUBLISHING` 即完成。`USER_MANAGED` 时忽略此项 |
-| `statusRequestInterval`   | 1 秒                            | 状态轮询及失败重试间隔；生产环境建议 3～5 秒，至少 1 毫秒                        |
-| `maxStatusRetries`        | `3`                             | 状态请求连续失败后的重试次数；生产环境建议 3～5 次，`0` 表示不重试               |
-| `baseUrl`                 | `https://central.sonatype.com/` | Publisher API 基础地址                                                           |
-| `deploymentName`          | `group:name:version`            | 部署名称                                                                         |
-
-`bundle.format` 支持 `BundleFormat.ZIP`（默认）和 `BundleFormat.TAR_GZ`；
-Maven Central 当前支持 ZIP、TAR.GZ 等常见归档格式。`archiveFileName` 应与所选格式一致。
-
-`statusRequestInterval` 同时控制正常状态轮询和失败后的等待时间；
-`maxStatusRetries` 只统计连续失败的状态请求，成功响应后计数会清零。
-例如间隔 3 秒、重试 3 次时，连续状态接口失败最多等待约 9 秒后终止任务；
-正常的 `PENDING`、`VALIDATING`、`PUBLISHING` 状态不会消耗重试次数。
-
-建议：本地调试可使用 1 秒和 1～3 次；CI 或生产发布建议使用 3～5 秒和 3～5 次，
-在降低状态接口请求频率的同时覆盖短暂的网络抖动。发布耗时较长时，优先增加轮询间隔，
-而不是无限增加重试次数；重试只处理请求失败，不限制部署正常处理的总时长。
-
-所有发布选项统一通过 `mavenCentral {}` 配置，上传任务直接使用该扩展，不再提供独立的任务级发布配置。
-凭据默认通过以下 Gradle 项目属性提供；`credentials {}` 可覆盖默认值，也可以将已有的
-`PasswordCredentials` 对象或 `Provider<PasswordCredentials>` 设置到 `credentials` 属性。
-环境变量可通过 `providers.environmentVariable('MY_CENTRAL_USERNAME').get()` 读取。
-
-#### 发布模式
-
-`publishingType` 是 Sonatype 上传 API 的原生参数：
-
-- `AUTOMATIC`：校验通过后自动发布。
-- `USER_MANAGED`：校验通过后进入 `VALIDATED`，由用户在 Portal 或调用发布 API 确认发布。
-
-发布模式统一使用 `publishingType`。旧任务配置 `publish=true` 改为
-`publishingType=PublishingType.AUTOMATIC`，`publish=false` 改为 `publishingType=PublishingType.USER_MANAGED`。
-`USER_MANAGED` 模式下忽略 `waitUntilFullyPublished`，任务在 `VALIDATED` 时完成。
-
-Sonatype API 省略此参数时默认 `USER_MANAGED`；本插件为兼容现有行为默认自动发布。
-参考：[官方 Publisher API 文档](https://central.sonatype.org/publish/publish-portal-api/)。
-
-#### 快照发布（SNAPSHOT）
-
-当（根）项目版本以 `-SNAPSHOT` 结尾时（例如 `1.0.0-SNAPSHOT`），Maven Central 的快照发布
-不走 Portal bundle 上传，而是通过兼容 `mvn deploy` 的接口直接部署。插件在项目评估完成后
-自动切换发布路径：
-
-- 在根项目与所有应用 `maven-publish` 的子模块上注册保留仓库 `mavenCentralSnapshots`，
-  指向 `https://central.sonatype.com/repository/maven-snapshots/`，凭据复用 `mavenCentral`
-  配置（Portal 用户令牌，基础认证）；
-- 将 `publishToMavenCentral` 与各 `publish<Publication>PublicationToMavenCentral`
-  指向对应快照仓库的发布任务，跳过暂存、打包与上传任务链（`mavenCentralStaging`、
-  `mavenCentralBundle`、`uploadMavenCentralBundle` 均不会执行）。
-
-前置条件：命名空间需先在 Central Portal 的 [Namespaces](https://central.sonatype.com/publishing/namespaces)
-页面启用 SNAPSHOTs（命名空间下拉菜单 → "Enable SNAPSHOTs"）。
-
-`-SNAPSHOT` 构件可被覆盖，且在一段时间后（当前为 90 天）被清理，与正式发布不可覆盖的语义不同。
-`mavenCentralSnapshots` 与 `mavenCentralStaging` 一样属于插件保留仓库名，不允许用户自行声明。
-参考：[Portal Snapshots 文档](https://central.sonatype.org/publish/publish-portal-snapshots/)。
-
-### Maven Central Portal 凭据
-
-你需要为 Maven Central Portal 创建一个用户令牌：
-
-https://central.sonatype.com/account
-
-将项目属性 `mavenCentralUsername` 和 `mavenCentralPassword` 设置为你的用户令牌信息。
-
-- 通过命令行设置凭据
-
-```shell
-./gradlew publishToMavenCentral -PmavenCentralUsername=<用户名> -PmavenCentralPassword=<密码>
-```
-
-- 通过环境变量设置凭据
-
-```shell
-export ORG_GRADLE_PROJECT_mavenCentralUsername=<令牌用户名>
-export ORG_GRADLE_PROJECT_mavenCentralPassword=<令牌密码>
-```
-
-- 通过 `~/.gradle/gradle.properties` 设置凭据
-
-```properties
-mavenCentralUsername=<令牌用户名>
-mavenCentralPassword=<令牌密码>
-```
-
-### 多模块聚合发布
-
-在根项目应用插件后（版本 0.0.5 起），会自动聚合所有子模块的发布产物：每个子模块
-先发布到统一的 `mavenCentralStaging` 仓库，再由根项目一次性打包上传，
-执行一次 `publishToMavenCentral` 即可发布整个构建，无需在根项目手写聚合脚本。
-
-本插件仅允许应用到根项目；应用到子模块会在配置阶段报错。聚合发布需满足两个条件：
-
-1. 应用 `maven-publish` 插件，并声明至少一个 `MavenPublication`（普通 `java` 或
-   `java-platform` 模块均可）；
-2. 根项目应用本插件。
-
-指向根项目 `build/publishing/staging-repository` 的 `mavenCentralStaging` 仓库由根插件
-自动扫描并添加：只要子模块应用了 `maven-publish`，就会被自动纳入
-聚合，无需手动配置。
-
-`mavenCentralStaging` 是插件保留仓库，由插件统一创建和配置。
-根项目和子模块都不允许自行声明同名仓库，即使指向相同目录也会在配置阶段报错。
-快照版本发布时，插件还会保留 `mavenCentralSnapshots` 仓库名，同样禁止自行声明。
-
-聚合在项目评估完成（`projectsEvaluated`）之后进行，因此不依赖子模块的配置顺序，
-`java-platform` 这类在根项目配置阶段尚未应用 `maven-publish` 的模块也会被正确纳入。
-
-根项目与子模块的 staging 发布任务均先执行一次共享仓库清理；ZIP/TAR.GZ 打包等待
-本次任务图中所有聚合的 staging 发布任务完成，支持使用 `--parallel` 并行构建。
-本地打包支持配置缓存，执行 `mavenCentralBundle --configuration-cache` 无需提供上传凭据。
-
-发布入口决定本次暂存的内容：`publishToMavenCentral` 暂存全部 publication（含子模块），
-`publish<Publication>PublicationToMavenCentral` 只暂存根项目指定的 publication。
-多个单 publication 入口在同一次构建中执行时，它们的构件合并到同一个 bundle，并上传一次。
-这些入口共用 `uploadMavenCentralBundle → mavenCentralBundle → ZIP/TAR.GZ` 任务链；
-归档任务通过排序约束等待本次任务图中的暂存发布完成，不会自动触发其他暂存发布。
-
-任务依赖关系如下（子节点是父节点的 `dependsOn` 前置依赖，不表示同级任务的执行顺序）：
-
-```plain text
-publish
-├─ 其他仓库发布任务
-└─ publishToMavenCentral
-   ├─ publishAllPublicationsToMavenCentralStagingRepository
-   │  ├─ publishX1PublicationToMavenCentralStagingRepository
-   │  │  └─ cleanMavenCentralStagingRepository
-   │  ├─ publishX2PublicationToMavenCentralStagingRepository
-   │  │  └─ cleanMavenCentralStagingRepository
-   │  └─ 各子项目的全量暂存发布任务
-   │     └─ 子项目各 publication 暂存任务
-   │        └─ cleanMavenCentralStagingRepository
-   └─ uploadMavenCentralBundle
-      └─ mavenCentralBundle
-         ├─ mavenCentralTarGzBundle
-         └─ mavenCentralZipBundle
-
-publishX1PublicationToMavenCentral
-├─ publishX1PublicationToMavenCentralStagingRepository
-│  └─ cleanMavenCentralStagingRepository
-└─ uploadMavenCentralBundle
-   └─ mavenCentralBundle
-      ├─ mavenCentralTarGzBundle
-      └─ mavenCentralZipBundle
-```
-
-ZIP/TAR.GZ 归档任务额外通过 `mustRunAfter` 等待已加入任务图的暂存发布任务完成。
-共享清理任务在同一次构建中只执行一次；两个归档任务中仅配置选中的格式实际执行。
-
-直接执行 `mavenCentralBundle` 或 `uploadMavenCentralBundle` 会使用当前 staging 目录，
-不会清理或重新发布构件。需要先暂存再本地打包时，执行：
-`./gradlew publishAllPublicationsToMavenCentralStagingRepository mavenCentralBundle`。
-
-根项目 `build.gradle`：
+插件只允许应用到根项目。将 `<版本>` 替换为需要使用的插件版本：
 
 ```groovy
 plugins {
-  id 'cn.taketoday.maven-central-publishing' version '0.0.5'
+  id 'cn.taketoday.maven-central-publishing' version '<版本>'
 }
 ```
 
-子模块共享的发布脚本（例如 `gradle/publications.gradle`，由子模块 `apply from`）：
+子模块只需要应用 `maven-publish` 并声明 publication：
 
 ```groovy
 apply plugin: 'maven-publish'
@@ -212,40 +39,220 @@ publishing {
 }
 ```
 
-`mavenCentralStaging` 仓库由插件统一配置，子模块无需也不允许自行声明同名仓库。
+根项目执行以下任务即可发布全部 publication（包括子模块）：
 
-### 调试日志
+```shell
+./gradlew publishToMavenCentral
+```
 
-插件通过 Gradle 标准日志输出发布与聚合信息，日志级别由 Gradle 命令行控制，无需额外配置：
+正式版本会先写入根项目的 `build/publishing/staging-repository`，再打包并上传一个 bundle。
+`-SNAPSHOT` 版本会自动改用 Maven Central Snapshots 仓库，详见[快照发布](#快照发布-snapshot)。
 
-| 命令                    | 可见内容                                                         |
-|-------------------------|------------------------------------------------------------------|
-| 默认                    | 仅 Gradle 常规输出                                               |
-| `./gradlew --info ...`  | `INFO`：staging 仓库位置、聚合的子模块发布任务数量               |
-| `./gradlew --debug ...` | `DEBUG`：每个子模块的聚合/跳过细节及原因、插件应用与任务注册情况 |
+## 凭据配置
 
-例如：
+请先在 [Maven Central Portal](https://central.sonatype.com/account) 创建用户令牌。插件默认读取
+Gradle 的 `mavenCentralUsername` 和 `mavenCentralPassword` 项目属性。
+
+推荐通过环境变量注入，避免将令牌写入项目：
+
+```shell
+export ORG_GRADLE_PROJECT_mavenCentralUsername=<令牌用户名>
+export ORG_GRADLE_PROJECT_mavenCentralPassword=<令牌密码>
+./gradlew publishToMavenCentral
+```
+
+也可以临时通过命令行传入：
+
+```shell
+./gradlew publishToMavenCentral \
+  -PmavenCentralUsername=<令牌用户名> \
+  -PmavenCentralPassword=<令牌密码>
+```
+
+或者写入用户级 `~/.gradle/gradle.properties`：
+
+```properties
+mavenCentralUsername=<令牌用户名>
+mavenCentralPassword=<令牌密码>
+```
+
+如果项目已有其他属性名，可以在 `mavenCentral {}` 中映射：
+
+```groovy
+mavenCentral {
+  credentials {
+    username = providers.gradleProperty('myCentralUsername').get()
+    password = providers.gradleProperty('myCentralPassword').get()
+  }
+}
+```
+
+## 发布配置
+
+所有正式版本发布选项统一通过 `mavenCentral {}` 配置：
+
+```groovy
+import cn.taketoday.publishing.BundleFormat
+import cn.taketoday.publishing.PublishingType
+import java.time.Duration
+
+mavenCentral {
+  bundle {
+    format = BundleFormat.ZIP
+    archiveFileName = 'bundle.zip'
+  }
+
+  credentials {
+    username = providers.gradleProperty('mavenCentralUsername').get()
+    password = providers.gradleProperty('mavenCentralPassword').get()
+  }
+
+  publishingType = PublishingType.AUTOMATIC
+  waitUntilFullyPublished = true
+  statusRequestInterval = Duration.ofSeconds(3)
+  maxStatusRetries = 3
+  maxDeploymentWait = Duration.ofMinutes(60)
+  baseUrl = uri('https://central.sonatype.com/')
+  deploymentName = "${group}:${project.name}:${version}"
+}
+```
+
+### 配置项
+
+| 配置项                    | 默认值                          | 说明                                                                                             |
+|---------------------------|---------------------------------|--------------------------------------------------------------------------------------------------|
+| `publishingType`          | `AUTOMATIC`                     | `AUTOMATIC` 校验通过后自动发布；`USER_MANAGED` 校验通过后等待手动发布                            |
+| `credentials`             | Gradle `mavenCentral` 凭据      | `PasswordCredentials`，默认读取 `mavenCentralUsername` / `mavenCentralPassword`                  |
+| `waitUntilFullyPublished` | `false`                         | 自动发布时是否等待 `PUBLISHED`；为 `false` 时到 `PUBLISHING` 即完成。`USER_MANAGED` 模式忽略此项 |
+| `statusRequestInterval`   | 1 秒                            | 部署状态轮询及失败重试的等待间隔，最小为 1 毫秒                                                  |
+| `maxStatusRetries`        | `3`                             | 连续状态请求失败后的重试次数；`0` 表示不重试，成功响应后计数清零                                 |
+| `maxDeploymentWait`       | 60 分钟                         | 等待部署进入目标状态的最长时间；设置为非正数可禁用超时                                           |
+| `baseUrl`                 | `https://central.sonatype.com/` | Maven Central Publisher API 基础地址                                                             |
+| `deploymentName`          | `group:name:version`            | Portal 中显示的部署名称                                                                          |
+
+`bundle.format` 支持 `BundleFormat.ZIP`（默认）和 `BundleFormat.TAR_GZ`。`archiveFileName` 应与格式匹配，
+例如 `bundle.zip` 或 `bundle.tar.gz`。输出目录默认为 `build/publishing`，也可以通过 `bundle.destinationDirectory`
+进行配置。
+
+### 发布模式
+
+`publishingType` 对应 Sonatype Publisher API 的原生参数：
+
+- `AUTOMATIC`：校验通过后自动发布；
+- `USER_MANAGED`：校验通过后进入 `VALIDATED`，由用户在 Portal 或通过发布 API 确认发布。
+
+插件默认使用 `AUTOMATIC`，而 Sonatype API 在省略该参数时默认使用 `USER_MANAGED`。
+`USER_MANAGED` 模式下任务在 `VALIDATED` 状态完成，不会等待 `PUBLISHED`。
+
+状态轮询建议：本地调试可使用 1 秒和 1～3 次重试；CI 或生产环境建议使用 3～5 秒和 3～5 次重试。
+重试只处理状态请求失败，不限制部署正常处理的总时长；发布耗时较长时优先增大轮询间隔。
+
+参考：[Maven Central Publisher API](https://central.sonatype.org/publish/publish-portal-api/)。
+
+## 快照发布（SNAPSHOT）
+
+当根项目版本以 `-SNAPSHOT` 结尾（例如 `1.0.0-SNAPSHOT`）时，插件不会上传 Portal bundle，
+而是通过兼容 `mvn deploy` 的接口直接发布到 Maven Central Snapshots：
+
+- 自动为根项目及所有应用 `maven-publish` 的子模块注册保留仓库 `mavenCentralSnapshots`；
+- 仓库地址为 `https://central.sonatype.com/repository/maven-snapshots/`，复用 Maven Central 凭据；
+- `publishToMavenCentral` 和各 publication 发布任务直接指向快照仓库；
+- 不执行 `mavenCentralStaging`、`mavenCentralBundle` 或 `uploadMavenCentralBundle` 任务链。
+
+使用前，必须在 Central Portal 的 [Namespaces](https://central.sonatype.com/publishing/namespaces)
+页面启用 SNAPSHOTs（命名空间下拉菜单 → **Enable SNAPSHOTs**）。
+
+快照构件可以覆盖，并会在一段时间后（当前为 90 天）清理；这与正式版本不可覆盖的语义不同。
+`mavenCentralSnapshots` 和 `mavenCentralStaging` 都是插件保留名称，不能由用户自行声明。
+
+参考：[Portal Snapshots](https://central.sonatype.org/publish/publish-portal-snapshots/)。
+
+## 多模块聚合发布
+
+插件会在项目评估完成后扫描所有子项目。只要子模块应用 `maven-publish` 并声明至少一个
+`MavenPublication`（包括 `java` 和 `java-platform` 模块），就会自动加入根项目的发布流程：
+
+```text
+子模块 publication
+        │
+        ▼
+统一 staging 仓库：build/publishing/staging-repository
+        │
+        ▼
+根项目打包 bundle
+        │
+        ▼
+Maven Central Portal
+```
+
+因此无需编写额外的聚合脚本。插件只允许应用到根项目，在子模块应用会在配置阶段报错。
+
+### 保留仓库与任务规则
+
+- `mavenCentralStaging` 由插件统一创建，根项目和子模块都不得自行声明；
+- 正式版本的 staging 发布任务共享一次清理操作；
+- `publishToMavenCentral` 暂存所有 publication（含子模块）；
+- `publish<Publication>PublicationToMavenCentral` 只暂存根项目指定的 publication；
+- 同一次构建中的多个单 publication 入口会合并到同一个 bundle，并上传一次；
+- 归档任务只执行所选格式，并等待当前任务图中的 staging 发布完成；
+- 支持使用 `--parallel` 并行执行子模块构建；
+- `mavenCentralBundle --configuration-cache` 可在不提供上传凭据的情况下本地打包。
+
+完整任务链如下（子节点表示父节点的 `dependsOn` 前置依赖，不表示同级任务执行顺序）：
+
+```text
+publish
+└─ publishToMavenCentral
+   ├─ publishAllPublicationsToMavenCentralStagingRepository
+   │  ├─ 根项目各 publication 暂存任务
+   │  └─ 各子项目的 publication 暂存任务
+   └─ uploadMavenCentralBundle
+      └─ mavenCentralBundle
+         ├─ mavenCentralZipBundle
+         └─ mavenCentralTarGzBundle
+```
+
+直接执行 `mavenCentralBundle` 或 `uploadMavenCentralBundle` 会使用现有 staging 目录，
+不会自动清理或重新发布。若要先暂存再本地打包：
+
+```shell
+./gradlew publishAllPublicationsToMavenCentralStagingRepository mavenCentralBundle
+```
+
+## 常用任务
+
+| 任务                                                    | 用途                                                              |
+|---------------------------------------------------------|-------------------------------------------------------------------|
+| `publishToMavenCentral`                                 | 发布全部 publication；正式版本聚合后上传 bundle，快照版本直接部署 |
+| `publish<Publication>PublicationToMavenCentral`         | 仅发布根项目指定 publication                                      |
+| `mavenCentralBundle`                                    | 将当前 staging 目录打包为 ZIP 或 TAR.GZ                           |
+| `uploadMavenCentralBundle`                              | 上传当前 bundle 并轮询部署状态                                    |
+| `publishAllPublicationsToMavenCentralStagingRepository` | 将全部 publication 暂存到本地 staging 仓库                        |
+
+## 调试日志
+
+插件使用 Gradle 标准日志，无需额外配置：
+
+| 命令                    | 内容                                              |
+|-------------------------|---------------------------------------------------|
+| 默认                    | Gradle 常规输出                                   |
+| `./gradlew --info ...`  | staging 仓库位置、聚合的子模块发布任务数量        |
+| `./gradlew --debug ...` | 每个子模块的聚合/跳过原因、插件应用和任务注册详情 |
+
+查看发布任务而不实际执行：
 
 ```shell
 ./gradlew publishToMavenCentral --dry-run --info
 ```
 
-会输出类似：
-
-```
-Maven Central publishing configured for project ':', staging at '.../build/publishing/staging-repository'
-Aggregated 90 subproject publishing task(s) into root project 'infra' Maven Central publishing
-```
-
-`--debug` 时还会逐行列出每个被聚合的子模块，便于排查漏发问题。
-
 ## 致谢
 
-本项目借鉴了 [SgtSilvio/gradle-maven-central-publishing](https://github.com/SgtSilvio/gradle-maven-central-publishing) 的发布流程与设计思路，
-并结合实际场景做了调整与扩展（如根项目聚合发布、SNAPSHOT 直接发布到快照仓库等）。
+本项目借鉴了 [SgtSilvio/gradle-maven-central-publishing](https://github.com/SgtSilvio/gradle-maven-central-publishing)
+的发布流程与设计思路，并结合实际场景扩展了根项目聚合发布、SNAPSHOT 直接发布等能力。
 
-同时感谢：[JetBrains](https://www.jetbrains.com/?from=https://github.com/TAKETODAY/today-infrastructure) 提供免费 IDE 开源授权
+感谢 [JetBrains](https://www.jetbrains.com/?from=https://github.com/TAKETODAY/today-infrastructure)
+提供免费的开源项目 IDE 授权。
 
-## 📄 开源协议
+## 开源协议
 
 本项目使用 [Apache License 2.0](LICENSE) 开源。
