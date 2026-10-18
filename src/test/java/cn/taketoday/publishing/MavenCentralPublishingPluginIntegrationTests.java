@@ -132,7 +132,7 @@ class MavenCentralPublishingPluginIntegrationTests {
 
     assertThat(result.getOutput())
             .contains(":library:publishLibraryPublicationToMavenCentral")
-            .contains(":library:publishLibraryPublicationToMavenCentralSnapshotsRepository")
+            .contains(":library:publishLibraryPublicationToMavenCentralRepository")
             .doesNotContain(":uploadMavenCentralBundle")
             .doesNotContain(":mavenCentralBundle")
             .doesNotContain(":publishAllPublicationsToMavenCentralStagingRepository");
@@ -198,8 +198,8 @@ class MavenCentralPublishingPluginIntegrationTests {
 
     BuildResult snapshot = run("publishToMavenCentral", "--dry-run");
     assertThat(snapshot.getOutput())
-            .contains(":library:core:publishAllPublicationsToMavenCentralSnapshotsRepository")
-            .contains(":publishAllPublicationsToMavenCentralSnapshotsRepository")
+            .contains(":library:core:publishAllPublicationsToMavenCentralRepository")
+            .contains(":publishAllPublicationsToMavenCentralRepository")
             .doesNotContain(":uploadMavenCentralBundle");
   }
 
@@ -291,7 +291,7 @@ class MavenCentralPublishingPluginIntegrationTests {
 
     assertThat(result.getOutput())
             .contains(":publishLibraryPublicationToMavenCentral")
-            .contains(":publishLibraryPublicationToMavenCentralSnapshotsRepository")
+            .contains(":publishLibraryPublicationToMavenCentralRepository")
             .doesNotContain(":uploadMavenCentralBundle")
             .doesNotContain(":mavenCentralBundle")
             .doesNotContain(":publishAllPublicationsToMavenCentralStagingRepository");
@@ -391,8 +391,8 @@ class MavenCentralPublishingPluginIntegrationTests {
     BuildResult result = run("publishToMavenCentral", "--dry-run");
     String output = result.getOutput();
     assertThat(output)
-            .contains(":library:publishAllPublicationsToMavenCentralSnapshotsRepository")
-            .contains(":publishAllPublicationsToMavenCentralSnapshotsRepository")
+            .contains(":library:publishAllPublicationsToMavenCentralRepository")
+            .contains(":publishAllPublicationsToMavenCentralRepository")
             .doesNotContain(":uploadMavenCentralBundle")
             .doesNotContain(":mavenCentralBundle")
             .doesNotContain(":publishAllPublicationsToMavenCentralStagingRepository");

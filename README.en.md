@@ -226,11 +226,9 @@ Before publishing, enable SNAPSHOTs for the namespace on the Central Portal [Nam
 page: open the namespace menu and select **Enable SNAPSHOTs**.
 
 Snapshot artifacts can be overwritten and are cleaned up after a period of time (currently 90 days). This differs
-from release versions, which cannot be overwritten. `mavenCentral`, `mavenCentralSnapshots`, and
-`mavenCentralStaging` are reserved repository names and must not be declared by users. The snapshots repository
-is named `mavenCentral` so it matches Gradle's `mavenCentralUsername` / `mavenCentralPassword` credential
-identity; task names such as `publishAllPublicationsToMavenCentralSnapshotsRepository` keep the
-`mavenCentralSnapshots` suffix.
+from release versions, which cannot be overwritten. `mavenCentral` and `mavenCentralStaging` are reserved
+repository names and must not be declared by users. The snapshots repository is named `mavenCentral` so it
+matches Gradle's `mavenCentralUsername` / `mavenCentralPassword` credential identity.
 
 Snapshot publishing reuses the `mavenCentral` credentials. With the default Gradle credentials provider the
 configuration cache stores only the credential identity and resolves the values during publishing, so snapshot

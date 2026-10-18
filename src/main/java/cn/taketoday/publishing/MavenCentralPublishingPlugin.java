@@ -81,9 +81,6 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
   /** The name of the repository used to publish SNAPSHOT versions. */
   public static final String SNAPSHOT_REPOSITORY_NAME = "mavenCentral";
 
-  /** The legacy task-name suffix used by the snapshot publishing entry points. */
-  private static final String SNAPSHOT_TASK_SUFFIX = "mavenCentralSnapshots";
-
   /** The suffix that identifies a SNAPSHOT version. */
   public static final String SNAPSHOT_VERSION_SUFFIX = "-SNAPSHOT";
 
@@ -103,10 +100,6 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
   /** The name of the task that publishes all publications to the snapshots repository. */
   private static final String publishAllPublicationsToMavenCentralRepository =
           "publishAllPublicationsTo" + capitalize(SNAPSHOT_REPOSITORY_NAME) + "Repository";
-
-  /** The legacy name of the task that publishes all publications to the snapshots repository. */
-  private static final String publishAllPublicationsToMavenCentralSnapshotsRepository =
-          "publishAllPublicationsTo" + capitalize(SNAPSHOT_TASK_SUFFIX) + "Repository";
 
   /**
    * Creates a Maven Central publishing plugin.
@@ -331,10 +324,10 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
   /**
    * Routes Maven Central publishing to the snapshots repository for SNAPSHOT versions.
    *
-   * <p>Registers the reserved {@code mavenCentralSnapshots} repository on the root project and
-   * every publishing subproject, and points {@code publishToMavenCentral} and the
-   * per-publication publish entry points at it, bypassing the staging, bundle and upload chain
-   * used for release versions.</p>
+   * <p>Registers the reserved {@code mavenCentral} repository on the root project and every
+   * publishing subproject, and points {@code publishToMavenCentral} and the per-publication
+   * publish entry points at it, bypassing the staging, bundle and upload chain used for release
+   * versions.</p>
    *
    * @param rootProject the root project evaluating and aggregating publications
    * @param extension the shared Maven Central publishing configuration
@@ -354,8 +347,7 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
       }
       registerSnapshotsRepository(subproject, extension);
       configureSnapshotPublications(subproject, publishingExtension);
-      TaskProvider<?> subprojectAllTask = subproject.getTasks()
-              .named(publishAllPublicationsToMavenCentralSnapshotsRepository);
+      TaskProvider<?> subprojectAllTask = subproject.getTasks().named(publishAllPublicationsToMavenCentralRepository);
       publishAllMavenCentralSnapshots.configure(task -> task.dependsOn(subprojectAllTask));
     }
     return registerSnapshotPublishToMavenCentralTask(rootProject);
@@ -365,15 +357,8 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
     publishing.getPublications().withType(MavenPublication.class).configureEach(publication -> {
       String publicationName = publication.getName();
       var publishToSnapshotsRepositoryTask = getPublishToSnapshotsRepositoryTask(publicationProject, publicationName);
-      var legacyPublishToSnapshotsRepositoryTask = publicationProject.getTasks().register(
-              "publish" + capitalize(publicationName) + "PublicationTo" + capitalize(SNAPSHOT_TASK_SUFFIX) + "Repository",
-              task -> {
-                task.setGroup(PUBLISH_TASK_GROUP);
-                task.setDescription("Publishes Maven publication '" + publicationName + "' to Maven Central snapshots.");
-                task.dependsOn(publishToSnapshotsRepositoryTask);
-              });
       registerMavenCentralPublicationTask(publicationProject, publicationName,
-              task -> task.dependsOn(legacyPublishToSnapshotsRepositoryTask));
+              task -> task.dependsOn(publishToSnapshotsRepositoryTask));
     });
   }
 
@@ -392,7 +377,6 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
     validateUrl(extension.getSnapshotRepositoryUrl().get(), "snapshotRepositoryUrl");
     PublishingExtension publishing = project.getExtensions().getByType(PublishingExtension.class);
     rejectReservedRepository(publishing, project, SNAPSHOT_REPOSITORY_NAME);
-    rejectReservedRepository(publishing, project, SNAPSHOT_TASK_SUFFIX);
 
     publishing.getRepositories().maven(repository -> {
       repository.setName(SNAPSHOT_REPOSITORY_NAME);
@@ -411,12 +395,6 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
       else {
         repository.credentials(PasswordCredentials.class);
       }
-    });
-
-    project.getTasks().register(publishAllPublicationsToMavenCentralSnapshotsRepository, task -> {
-      task.setGroup(PUBLISH_TASK_GROUP);
-      task.setDescription("Publishes all Maven publications produced by this project to Maven Central snapshots.");
-      task.dependsOn(project.getTasks().named(publishAllPublicationsToMavenCentralRepository));
     });
   }
 
@@ -439,7 +417,7 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
     return project.getTasks().register(PUBLISH_TO_MAVEN_CENTRAL_TASK_NAME, task -> {
       task.setGroup(PUBLISH_TASK_GROUP);
       task.setDescription("Publishes all Maven publications produced by this project (and its subprojects) to Maven Central.");
-      task.dependsOn(project.getTasks().named(publishAllPublicationsToMavenCentralSnapshotsRepository));
+      task.dependsOn(project.getTasks().named(publishAllPublicationsToMavenCentralRepository));
     });
   }
 

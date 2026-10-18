@@ -219,10 +219,9 @@ mavenCentral {
 页面启用 SNAPSHOTs（命名空间下拉菜单 → **Enable SNAPSHOTs**）。
 
 快照构件可以覆盖，并会在一段时间后（当前为 90 天）清理；这与正式版本不可覆盖的语义不同。
-`mavenCentral`、`mavenCentralSnapshots` 和 `mavenCentralStaging` 都是插件保留名称，不能由用户自行声明。
-其中快照发布仓库使用 `mavenCentral`，以便与 Gradle 的 `mavenCentralUsername` / `mavenCentralPassword`
-凭据身份保持一致；`publishAllPublicationsToMavenCentralSnapshotsRepository` 等任务名仍保留
-`mavenCentralSnapshots` 后缀。
+`mavenCentral` 和 `mavenCentralStaging` 都是插件保留名称，不能由用户自行声明。
+快照发布仓库使用 `mavenCentral`，以便与 Gradle 的 `mavenCentralUsername` / `mavenCentralPassword`
+凭据身份保持一致。
 
 `publisherUrl` 用于正式版本的 Portal Publisher API，`snapshotRepositoryUrl` 用于快照版本的 Maven
 仓库上传接口。两者默认值通常无需修改，并且必须配置为绝对的 HTTP(S) URL。快照发布复用

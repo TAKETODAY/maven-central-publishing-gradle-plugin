@@ -189,11 +189,11 @@ class MavenCentralPublishingPluginTests {
     Task publishLibrary = snapshotProject.getTasks().getByName("publishLibraryPublicationToMavenCentral");
     assertThat(publishLibrary.getTaskDependencies().getDependencies(publishLibrary))
             .extracting(Task::getName)
-            .contains("publishLibraryPublicationToMavenCentralSnapshotsRepository");
+            .contains("publishLibraryPublicationToMavenCentralRepository");
     Task publishAll = snapshotProject.getTasks().getByName("publishToMavenCentral");
     assertThat(publishAll.getTaskDependencies().getDependencies(publishAll))
             .extracting(Task::getName)
-            .contains("publishAllPublicationsToMavenCentralSnapshotsRepository")
+            .contains("publishAllPublicationsToMavenCentralRepository")
             .doesNotContain("uploadMavenCentralBundle", "publishAllPublicationsToMavenCentralStagingRepository");
   }
 
@@ -218,8 +218,8 @@ class MavenCentralPublishingPluginTests {
     Task publish = subproject.getTasks().getByName("publishLibraryPublicationToMavenCentral");
     assertThat(publish.getTaskDependencies().getDependencies(publish))
             .extracting(Task::getName)
-            .containsExactly("publishLibraryPublicationToMavenCentralSnapshotsRepository");
-    assertThat(subproject.getTasks().getByName("publishLibraryPublicationToMavenCentralSnapshotsRepository"))
+            .containsExactly("publishLibraryPublicationToMavenCentralRepository");
+    assertThat(subproject.getTasks().getByName("publishLibraryPublicationToMavenCentralRepository"))
             .isNotNull();
     assertThat(subproject.getTasks().findByName("uploadMavenCentralBundle")).isNull();
     assertThat(subproject.getTasks().findByName("mavenCentralBundle")).isNull();
@@ -268,7 +268,7 @@ class MavenCentralPublishingPluginTests {
     assertThat(publishAll.getTaskDependencies().getDependencies(publishAll))
             .extracting(Task::getName)
             .contains(upload.getName(), "publishAllPublicationsToMavenCentralStagingRepository")
-            .doesNotContain("publishAllPublicationsToMavenCentralSnapshotsRepository");
+            .doesNotContain("publishAllPublicationsToMavenCentralRepository");
   }
 
   private Task task(String name) {
