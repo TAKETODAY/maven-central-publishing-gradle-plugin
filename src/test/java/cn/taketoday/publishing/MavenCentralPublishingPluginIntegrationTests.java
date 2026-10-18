@@ -130,6 +130,71 @@ class MavenCentralPublishingPluginIntegrationTests {
   }
 
   @Test
+  void aggregatesNestedSubprojectsIntoRootPublish() throws IOException {
+    write("settings.gradle", """
+            rootProject.name = 'nested-aggregate'
+            include 'library:core'
+            """);
+    write("build.gradle", """
+            plugins {
+              id 'cn.taketoday.maven-central-publishing'
+              id 'java'
+            }
+            allprojects {
+              apply plugin: 'java'
+              apply plugin: 'maven-publish'
+              group = 'com.example'
+              version = '1.0.0'
+              publishing {
+                publications {
+                  maven(MavenPublication) { from components.java }
+                }
+              }
+            }
+            """);
+    Files.createDirectories(directory.resolve("library/core"));
+
+    BuildResult release = run("publishToMavenCentral", "--dry-run");
+    assertThat(release.getOutput())
+            .contains(":library:core:publishAllPublicationsToMavenCentralStagingRepository")
+            .contains(":publishAllPublicationsToMavenCentralStagingRepository")
+            .contains(":uploadMavenCentralBundle");
+  }
+
+  @Test
+  void aggregatesNestedSubprojectsInSnapshotPublishing() throws IOException {
+    write("settings.gradle", """
+            rootProject.name = 'nested-snapshot-aggregate'
+            include 'library:core'
+            """);
+    write("build.gradle", """
+            plugins {
+              id 'cn.taketoday.maven-central-publishing'
+              id 'java'
+            }
+            version = '1.0-SNAPSHOT'
+            allprojects {
+              apply plugin: 'java'
+              apply plugin: 'maven-publish'
+              group = 'com.example'
+              version = '1.0-SNAPSHOT'
+              publishing {
+                publications {
+                  maven(MavenPublication) { from components.java }
+                }
+              }
+            }
+            """);
+    Files.createDirectories(directory.resolve("library/core"));
+
+    BuildResult snapshot = run("publishToMavenCentral", "--dry-run");
+    assertThat(snapshot.getOutput())
+            .contains(":library:core:publishAllPublicationsToMavenCentralSnapshotsRepository")
+            .contains(":publishAllPublicationsToMavenCentralSnapshotsRepository")
+            .doesNotContain(":uploadMavenCentralBundle");
+  }
+
+  @Test
   void configuresCustomSnapshotRepositoryUrlFromDsl() throws IOException {
     write("settings.gradle", "rootProject.name = 'custom-snapshot-url'");
     write("build.gradle", """
