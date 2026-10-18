@@ -112,27 +112,30 @@ mavenCentral {
   statusRequestInterval = Duration.ofSeconds(3)
   maxStatusRetries = 3
   maxDeploymentWait = Duration.ofMinutes(60)
-  baseUrl = uri('https://central.sonatype.com/')
+  publisherUrl = uri('https://central.sonatype.com/')
+  snapshotRepositoryUrl = uri('https://central.sonatype.com/repository/maven-snapshots/')
   deploymentName = "${group}:${project.name}:${version}"
 }
 ```
 
 ### 配置项
 
-| 配置项                    | 默认值                          | 说明                                                                                             |
-|---------------------------|---------------------------------|--------------------------------------------------------------------------------------------------|
-| `publishingType`          | `AUTOMATIC`                     | `AUTOMATIC` 校验通过后自动发布；`USER_MANAGED` 校验通过后等待手动发布                            |
-| `credentials`             | Gradle `mavenCentral` 凭据      | `PasswordCredentials`，默认读取 `mavenCentralUsername` / `mavenCentralPassword`                  |
-| `waitUntilFullyPublished` | `false`                         | 自动发布时是否等待 `PUBLISHED`；为 `false` 时到 `PUBLISHING` 即完成。`USER_MANAGED` 模式忽略此项 |
-| `statusRequestInterval`   | 1 秒                            | 部署状态轮询及失败重试的等待间隔，最小为 1 毫秒                                                  |
-| `maxStatusRetries`        | `3`                             | 连续状态请求失败后的重试次数；`0` 表示不重试，成功响应后计数清零                                 |
-| `maxDeploymentWait`       | 60 分钟                         | 等待部署进入目标状态的最长时间；设置为非正数可禁用超时                                           |
-| `baseUrl`                 | `https://central.sonatype.com/` | Maven Central Publisher API 基础地址                                                             |
-| `deploymentName`          | `group:name:version`            | Portal 中显示的部署名称                                                                          |
+| 配置项                    | 默认值                                                     | 说明                                                                                             |
+|---------------------------|------------------------------------------------------------|--------------------------------------------------------------------------------------------------|
+| `publishingType`          | `AUTOMATIC`                                                | `AUTOMATIC` 校验通过后自动发布；`USER_MANAGED` 校验通过后等待手动发布                            |
+| `credentials`             | Gradle `mavenCentral` 凭据                                 | `PasswordCredentials`，默认读取 `mavenCentralUsername` / `mavenCentralPassword`                  |
+| `waitUntilFullyPublished` | `false`                                                    | 自动发布时是否等待 `PUBLISHED`；为 `false` 时到 `PUBLISHING` 即完成。`USER_MANAGED` 模式忽略此项 |
+| `statusRequestInterval`   | 1 秒                                                       | 部署状态轮询及失败重试的等待间隔，最小为 1 毫秒                                                  |
+| `maxStatusRetries`        | `3`                                                        | 连续状态请求失败后的重试次数；`0` 表示不重试，成功响应后计数清零                                 |
+| `maxDeploymentWait`       | 60 分钟                                                    | 等待部署进入目标状态的最长时间；设置为非正数可禁用超时                                           |
+| `publisherUrl`            | `https://central.sonatype.com/`                            | Maven Central Publisher API 地址                                                                 |
+| `snapshotRepositoryUrl`   | `https://central.sonatype.com/repository/maven-snapshots/` | Maven Central Snapshots 仓库地址                                                                 |
+| `deploymentName`          | `group:name:version`                                       | Portal 中显示的部署名称                                                                          |
 
 `bundle.format` 支持 `BundleFormat.ZIP`（默认）和 `BundleFormat.TAR_GZ`。`archiveFileName` 应与格式匹配，
 例如 `bundle.zip` 或 `bundle.tar.gz`。输出目录默认为 `build/publishing`，也可以通过 `bundle.destinationDirectory`
-进行配置。
+进行配置。`publisherUrl` 和 `snapshotRepositoryUrl` 可分别用于配置 Portal API 与快照仓库地址，
+通常无需修改默认值。
 
 ### 发布模式
 
