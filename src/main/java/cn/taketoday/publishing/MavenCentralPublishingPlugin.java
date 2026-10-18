@@ -164,7 +164,7 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
     PublishingExtension publishing = project.getExtensions().getByType(PublishingExtension.class);
     if (publishing.getRepositories().findByName(STAGING_REPOSITORY_NAME) != null) {
       throw new GradleException("Repository '" + STAGING_REPOSITORY_NAME + "' in project '"
-              + project.getPath() + "' is reserved for 'cn.taketoday.maven-central-publishing' and must not be configured by users.");
+              + project.getName() + "' is reserved for 'cn.taketoday.maven-central-publishing' and must not be configured by users.");
     }
     var stagingRepository = publishing.getRepositories().maven(repository -> {
       repository.setName(STAGING_REPOSITORY_NAME);
@@ -371,7 +371,7 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
     PublishingExtension publishing = project.getExtensions().getByType(PublishingExtension.class);
     if (publishing.getRepositories().findByName(SNAPSHOT_REPOSITORY_NAME) != null) {
       throw new GradleException("Repository '" + SNAPSHOT_REPOSITORY_NAME + "' in project '"
-              + project.getPath() + "' is reserved for 'cn.taketoday.maven-central-publishing' and must not be configured by users.");
+              + project.getName() + "' is reserved for 'cn.taketoday.maven-central-publishing' and must not be configured by users.");
     }
     publishing.getRepositories().maven(repository -> {
       repository.setName(SNAPSHOT_REPOSITORY_NAME);
