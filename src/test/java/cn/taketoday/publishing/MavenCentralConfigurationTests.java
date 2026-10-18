@@ -256,6 +256,42 @@ class MavenCentralConfigurationTests {
     }
   }
 
+  @Test
+  @Timeout(5)
+  void preservesInterruptWhenPollingIsCancelled() throws Exception {
+    AtomicInteger requests = new AtomicInteger();
+    HttpServer server = stateServer(requests, new AtomicReference<>(), "{\"deploymentState\":\"PENDING\"}");
+    try {
+      MavenCentralUploadTask task = uploadTask(server);
+      task.getConfiguration().getStatusRequestInterval().set(Duration.ofSeconds(30));
+      AtomicReference<Throwable> failure = new AtomicReference<>();
+      AtomicReference<Boolean> interrupted = new AtomicReference<>();
+      Thread runner = new Thread(() -> {
+        try {
+          task.run();
+        }
+        catch (Throwable ex) {
+          failure.set(ex);
+          interrupted.set(Thread.currentThread().isInterrupted());
+        }
+      });
+      runner.start();
+      long deadline = System.nanoTime() + Duration.ofSeconds(2).toNanos();
+      while (requests.get() == 0 && System.nanoTime() < deadline) {
+        Thread.onSpinWait();
+      }
+      runner.interrupt();
+      runner.join(2000);
+
+      assertThat(runner.isAlive()).isFalse();
+      assertThat(failure.get()).isInstanceOf(InterruptedException.class);
+      assertThat(interrupted.get()).isTrue();
+    }
+    finally {
+      server.stop(0);
+    }
+  }
+
   private HttpServer stateServer(AtomicInteger requests, AtomicReference<String> uploadQuery,
           String... statuses) throws Exception {
     HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);

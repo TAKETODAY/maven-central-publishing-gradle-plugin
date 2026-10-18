@@ -127,9 +127,10 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
     extension.getBundle().getDestinationDirectory().convention(outputDirectory);
 
     registerStagingRepository(project, stagingRepositoryDirectory);
-    log.info("Maven Central publishing configured for project '{}', staging at '{}'",
-            project.getPath(), stagingRepositoryDirectory.get());
-
+    if (log.isInfoEnabled()) {
+      log.info("Maven Central publishing configured for project '{}', staging at '{}'",
+              project.getPath(), stagingRepositoryDirectory.get());
+    }
     var bundleTask = registerBundleTask(project, stagingRepositoryDirectory, extension);
     var uploadBundleTask = registerUploadBundleTask(project, bundleTask, outputDirectory, extension);
     var cleanStagingRepositoryTask = registerCleanStagingRepositoryTask(project, stagingRepositoryDirectory);

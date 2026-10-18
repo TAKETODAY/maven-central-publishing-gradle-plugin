@@ -46,6 +46,14 @@ import infra.web.client.ResourceAccessException;
 @DisableCachingByDefault(because = "Uploading files")
 public abstract class MavenCentralUploadTask extends DefaultTask {
 
+  private static final String STATE_VALIDATED = "VALIDATED";
+
+  private static final String STATE_PUBLISHING = "PUBLISHING";
+
+  private static final String STATE_PUBLISHED = "PUBLISHED";
+
+  private static final String STATE_FAILED = "FAILED";
+
   private final MavenCentralExtension configuration;
 
   /**
@@ -119,9 +127,9 @@ public abstract class MavenCentralUploadTask extends DefaultTask {
 
     String message = "maven central deployment id: " + deploymentId;
     getLogger().quiet(message);
-    Set<String> expectedStates = !isPublish ? Collections.singleton("VALIDATED") : !waitUntilFullyPublished ? Set.of("PUBLISHING", "PUBLISHED") : Collections.singleton("PUBLISHED");
-    Set<String> unexpectedStates = !isPublish ? Set.of("PUBLISHING", "PUBLISHED", "FAILED")
-            : Collections.singleton("FAILED");
+    Set<String> expectedStates = !isPublish ? Collections.singleton(STATE_VALIDATED) : !waitUntilFullyPublished ? Set.of(STATE_PUBLISHING, STATE_PUBLISHED) : Collections.singleton(STATE_PUBLISHED);
+    Set<String> unexpectedStates = !isPublish ? Set.of(STATE_PUBLISHING, STATE_PUBLISHED, STATE_FAILED)
+            : Collections.singleton(STATE_FAILED);
     String previousState = null;
     int errorCount = 0;
     while (true) {
@@ -140,7 +148,7 @@ public abstract class MavenCentralUploadTask extends DefaultTask {
           throw e;
         }
         getLogger().lifecycle(message + ", state request failed for " + errorCount + " times, treating as temporary error: " + e.getMessage());
-        Thread.sleep(statusRequestInterval.toMillis());
+        sleep(statusRequestInterval);
         continue;
       }
       errorCount = 0;
@@ -165,7 +173,17 @@ public abstract class MavenCentralUploadTask extends DefaultTask {
         getLogger().info(waitingMessage);
       }
       previousState = state;
-      Thread.sleep(statusRequestInterval.toMillis());
+      sleep(statusRequestInterval);
+    }
+  }
+
+  private static void sleep(Duration duration) throws InterruptedException {
+    try {
+      Thread.sleep(duration.toMillis());
+    }
+    catch (InterruptedException ex) {
+      Thread.currentThread().interrupt();
+      throw ex;
     }
   }
 }
