@@ -114,8 +114,8 @@ mavenCentral {
   statusRequestInterval = Duration.ofSeconds(3)
   maxStatusRetries = 3
   maxDeploymentWait = Duration.ofMinutes(60)
-  publisherUrl = uri('https://central.sonatype.com/')
-  snapshotRepositoryUrl = uri('https://central.sonatype.com/repository/maven-snapshots/')
+  publisherUrl = uri('https://central.sonatype.com')
+  snapshotRepositoryUrl = uri('https://central.sonatype.com/repository/maven-snapshots')
   deploymentName = "${group}:${project.name}:${version}"
 }
 ```
@@ -130,8 +130,8 @@ mavenCentral {
 | `statusRequestInterval`   | 1 秒                                                       | 部署状态轮询及失败重试的等待间隔，最小为 1 毫秒                                                  |
 | `maxStatusRetries`        | `3`                                                        | 连续状态请求失败后的重试次数；`0` 表示不重试，成功响应后计数清零                                 |
 | `maxDeploymentWait`       | 60 分钟                                                    | 等待部署进入目标状态的最长时间；设置为非正数可禁用超时                                           |
-| `publisherUrl`            | `https://central.sonatype.com/`                            | Maven Central Publisher API 地址                                                                 |
-| `snapshotRepositoryUrl`   | `https://central.sonatype.com/repository/maven-snapshots/` | Maven Central Snapshots 仓库地址                                                                 |
+| `publisherUrl`            | `https://central.sonatype.com`                             | Maven Central Publisher API 地址                                                                 |
+| `snapshotRepositoryUrl`   | `https://central.sonatype.com/repository/maven-snapshots`  | Maven Central Snapshots 仓库地址                                                                 |
 | `deploymentName`          | `group:name:version`                                       | Portal 中显示的部署名称                                                                          |
 
 `bundle.format` 支持 `BundleFormat.ZIP`（默认）和 `BundleFormat.TAR_GZ`。`archiveFileName` 应与格式匹配，
@@ -172,11 +172,17 @@ mavenCentral {
 快照构件可以覆盖，并会在一段时间后（当前为 90 天）清理；这与正式版本不可覆盖的语义不同。
 `mavenCentralSnapshots` 和 `mavenCentralStaging` 都是插件保留名称，不能由用户自行声明。
 
+`publisherUrl` 用于正式版本的 Portal Publisher API，`snapshotRepositoryUrl` 用于快照版本的 Maven
+仓库上传接口。两者默认值通常无需修改，并且必须配置为绝对的 HTTP(S) URL。快照发布复用
+`mavenCentral` 凭据；凭据在发布任务执行时注入，不会在配置阶段要求提供。
+
 参考：[Portal Snapshots](https://central.sonatype.org/publish/publish-portal-snapshots/)。
 
 ## 多模块聚合发布
 
-插件会在项目评估完成后扫描所有子项目。只要子模块应用 `maven-publish` 并声明至少一个
+插件会在项目评估完成后扫描所有子项目。根项目的版本决定本次构建的发布模式：根项目版本以
+`-SNAPSHOT` 结尾时，根项目和所有子项目都直接发布快照；否则所有项目都走正式版本的 staging
+和 Portal bundle 链路。即使子项目单独设置了不同版本，也不会改变本次构建的发布模式。只要子模块应用 `maven-publish` 并声明至少一个
 `MavenPublication`（包括 `java` 和 `java-platform` 模块），就会自动加入根项目的发布流程：
 
 ```text

@@ -42,6 +42,11 @@ import groovy.lang.Closure;
  */
 public abstract class MavenCentralExtension {
 
+  static final URI DEFAULT_PUBLISHER_URL = URI.create("https://central.sonatype.com");
+
+  static final URI DEFAULT_SNAPSHOT_REPOSITORY_URL =
+          URI.create("https://central.sonatype.com/repository/maven-snapshots");
+
   private final BundleOptions bundle;
 
   /**
@@ -57,8 +62,8 @@ public abstract class MavenCentralExtension {
     getStatusRequestInterval().convention(Duration.ofSeconds(1));
     getMaxStatusRetries().convention(3);
     getMaxDeploymentWait().convention(Duration.ofMinutes(60));
-    getPublisherUrl().convention(URI.create("https://central.sonatype.com"));
-    getSnapshotRepositoryUrl().convention(URI.create("https://central.sonatype.com/repository/maven-snapshots"));
+    getPublisherUrl().convention(DEFAULT_PUBLISHER_URL);
+    getSnapshotRepositoryUrl().convention(DEFAULT_SNAPSHOT_REPOSITORY_URL);
     getBundle().getFormat().convention(BundleFormat.ZIP);
     getBundle().getArchiveFileName().convention(
             getBundle().getFormat().map(BundleFormat::getDefaultFileName));
@@ -141,7 +146,7 @@ public abstract class MavenCentralExtension {
 
   /**
    * Returns the Maven Central Publisher URL
-   * (default: {@code https://central.sonatype.com/}).
+   * (default: {@code https://central.sonatype.com}).
    *
    * @return the Publisher URL
    */
@@ -149,7 +154,7 @@ public abstract class MavenCentralExtension {
 
   /**
    * Returns the Maven Central snapshots repository URL
-   * (default: {@code https://central.sonatype.com/repository/maven-snapshots/}).
+   * (default: {@code https://central.sonatype.com/repository/maven-snapshots}).
    *
    * @return the snapshots repository URL
    */

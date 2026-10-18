@@ -130,6 +130,72 @@ class MavenCentralPublishingPluginIntegrationTests {
   }
 
   @Test
+  void configuresCustomSnapshotRepositoryUrlFromDsl() throws IOException {
+    write("settings.gradle", "rootProject.name = 'custom-snapshot-url'");
+    write("build.gradle", """
+            plugins { id 'cn.taketoday.maven-central-publishing' }
+            version = '1.0-SNAPSHOT'
+            mavenCentral {
+              snapshotRepositoryUrl = uri('https://repository.example.com/snapshots')
+            }
+            tasks.register('verifySnapshotRepository') {
+              doLast {
+                println "snapshot repository: ${publishing.repositories.getByName('mavenCentralSnapshots').url}"
+              }
+            }
+            """);
+
+    BuildResult result = run("verifySnapshotRepository");
+
+    assertThat(result.getOutput())
+            .contains("snapshot repository: https://repository.example.com/snapshots");
+  }
+
+  @Test
+  void rejectsNonHttpPublisherUrl() throws IOException {
+    write("settings.gradle", "rootProject.name = 'invalid-publisher-url'");
+    write("build.gradle", """
+            plugins { id 'cn.taketoday.maven-central-publishing' }
+            version = '1.0'
+            mavenCentral {
+              publisherUrl = uri('file:///tmp/maven-central')
+            }
+            """);
+
+    BuildResult result = GradleRunner.create()
+            .withProjectDir(directory.toFile())
+            .withPluginClasspath()
+            .withArguments("help")
+            .buildAndFail();
+
+    assertThat(result.getOutput())
+            .contains("mavenCentral.publisherUrl")
+            .contains("absolute HTTP(S) URL");
+  }
+
+  @Test
+  void rejectsNonHttpSnapshotRepositoryUrl() throws IOException {
+    write("settings.gradle", "rootProject.name = 'invalid-snapshot-url'");
+    write("build.gradle", """
+            plugins { id 'cn.taketoday.maven-central-publishing' }
+            version = '1.0-SNAPSHOT'
+            mavenCentral {
+              snapshotRepositoryUrl = uri('file:///tmp/maven-central-snapshots')
+            }
+            """);
+
+    BuildResult result = GradleRunner.create()
+            .withProjectDir(directory.toFile())
+            .withPluginClasspath()
+            .withArguments("help")
+            .buildAndFail();
+
+    assertThat(result.getOutput())
+            .contains("mavenCentral.snapshotRepositoryUrl")
+            .contains("absolute HTTP(S) URL");
+  }
+
+  @Test
   void snapshotPublicationTaskUsesSnapshotsRepositoryForRootPublication() throws IOException {
     write("settings.gradle", "rootProject.name = 'snapshot-root'");
     write("build.gradle", """

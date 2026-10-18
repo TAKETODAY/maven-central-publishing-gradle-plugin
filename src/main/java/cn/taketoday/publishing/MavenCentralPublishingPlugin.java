@@ -43,6 +43,7 @@ import org.gradle.plugins.signing.SigningPlugin;
 
 import java.io.Serial;
 import java.io.Serializable;
+import java.net.URI;
 
 import static infra.util.StringUtils.capitalize;
 import static org.gradle.api.publish.plugins.PublishingPlugin.PUBLISH_LIFECYCLE_TASK_NAME;
@@ -120,6 +121,7 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
   }
 
   private TaskProvider<?> registerReleasePublishing(Project rootProject, MavenCentralExtension extension) {
+    validateUrl(extension.getPublisherUrl().get(), "publisherUrl");
     Provider<Directory> outputDirectory = rootProject.getLayout().getBuildDirectory().dir("publishing");
     Provider<Directory> stagingRepositoryDirectory = outputDirectory.map(it -> it.dir("staging-repository"));
     extension.getBundle().getDestinationDirectory().convention(outputDirectory);
@@ -198,17 +200,13 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
       }
       registerStagingRepository(subproject, stagingRepositoryDirectory);
       log.debug("Auto-configured '{}' repository for subproject '{}'", STAGING_REPOSITORY_NAME, subproject.getPath());
-      Task stagingTask = subproject.getTasks().findByName(publishAllPublicationsToMavenCentralStagingRepository);
-      if (stagingTask == null) {
-        log.debug("Subproject '{}' has no '{}' task, skipped from aggregation",
-                subproject.getPath(), publishAllPublicationsToMavenCentralStagingRepository);
-        continue;
-      }
+      TaskProvider<?> stagingTask = subproject.getTasks()
+              .named(publishAllPublicationsToMavenCentralStagingRepository);
       configurePublications(subproject, publishingExtension, uploadBundleTask, cleanStagingRepositoryTask);
       publishAllStagingTask.configure(task -> task.dependsOn(stagingTask));
       aggregatedPublishingTasks++;
       log.debug("Aggregated subproject '{}' publishing task '{}' into project '{}' publishing",
-              subproject.getPath(), stagingTask.getPath(), rootProject.getPath());
+              subproject.getPath(), stagingTask.getName(), rootProject.getPath());
     }
     log.info("Aggregated {} subproject publishing task(s) into root project '{}' Maven Central publishing",
             aggregatedPublishingTasks, rootProject.getName());
@@ -336,12 +334,8 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
       }
       registerSnapshotsRepository(subproject, extension);
       configureSnapshotPublications(subproject, publishingExtension);
-      Task subprojectAllTask = subproject.getTasks().findByName(publishAllPublicationsToMavenCentralSnapshotsRepository);
-      if (subprojectAllTask == null) {
-        log.debug("Subproject '{}' has no '{}' task, skipped from snapshot publishing",
-                subproject.getPath(), publishAllPublicationsToMavenCentralSnapshotsRepository);
-        continue;
-      }
+      TaskProvider<?> subprojectAllTask = subproject.getTasks()
+              .named(publishAllPublicationsToMavenCentralSnapshotsRepository);
       publishAllMavenCentralSnapshots.configure(task -> task.dependsOn(subprojectAllTask));
     }
     return registerSnapshotPublishToMavenCentralTask(rootProject);
@@ -366,6 +360,7 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
    * same name are rejected.</p>
    */
   private void registerSnapshotsRepository(Project project, MavenCentralExtension extension) {
+    validateUrl(extension.getSnapshotRepositoryUrl().get(), "snapshotRepositoryUrl");
     PublishingExtension publishing = project.getExtensions().getByType(PublishingExtension.class);
     if (publishing.getRepositories().findByName(SNAPSHOT_REPOSITORY_NAME) != null) {
       throw new GradleException("Repository '" + SNAPSHOT_REPOSITORY_NAME + "' in project '"
@@ -376,6 +371,14 @@ public class MavenCentralPublishingPlugin implements Plugin<Project> {
       repository.setUrl(extension.getSnapshotRepositoryUrl());
     });
     configureSnapshotCredentials(project);
+  }
+
+  private void validateUrl(URI url, String propertyName) {
+    String scheme = url.getScheme();
+    if (!url.isAbsolute() || !("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))) {
+      throw new GradleException("Property 'mavenCentral." + propertyName
+              + "' must be an absolute HTTP(S) URL: " + url);
+    }
   }
 
   private TaskProvider<?> registerSnapshotPublishToMavenCentralTask(Project project) {
