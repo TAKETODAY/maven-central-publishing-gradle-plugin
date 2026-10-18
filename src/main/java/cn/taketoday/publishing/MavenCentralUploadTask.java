@@ -120,7 +120,7 @@ public abstract class MavenCentralUploadTask extends DefaultTask {
     long startNanos = System.nanoTime();
     File deploymentIdFile = getDeploymentIdFile().get().getAsFile();
 
-    var publisherApi = new MavenCentralPublisherAPI(configuration.getBaseUrl().get(),
+    var publisherApi = new MavenCentralPublisherAPI(configuration.getPublisherUrl().get(),
             configuration.getCredentials().get());
     String deploymentId = publisherApi.upload(bundleFile, deploymentName, publishingType);
     Files.writeString(deploymentIdFile.toPath(), deploymentId);

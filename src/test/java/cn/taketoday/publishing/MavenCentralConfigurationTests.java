@@ -65,7 +65,7 @@ class MavenCentralConfigurationTests {
     assertThat(extension.getStatusRequestInterval().get()).isEqualTo(Duration.ofSeconds(1));
     assertThat(extension.getMaxStatusRetries().get()).isEqualTo(3);
     assertThat(extension.getMaxDeploymentWait().get()).isEqualTo(Duration.ofMinutes(60));
-    assertThat(extension.getBaseUrl().get()).isEqualTo(URI.create("https://central.sonatype.com"));
+    assertThat(extension.getPublisherUrl().get()).isEqualTo(URI.create("https://central.sonatype.com"));
     assertThat(extension.getSnapshotRepositoryUrl().get())
             .isEqualTo(URI.create("https://central.sonatype.com/repository/maven-snapshots"));
 
@@ -80,13 +80,13 @@ class MavenCentralConfigurationTests {
     extension.getWaitUntilFullyPublished().set(true);
     extension.getStatusRequestInterval().set(Duration.ofSeconds(5));
     extension.getMaxStatusRetries().set(7);
-    extension.getBaseUrl().set(URI.create("https://example.test/"));
+    extension.getPublisherUrl().set(URI.create("https://example.test/"));
     extension.getDeploymentName().set("custom-deployment");
 
     assertThat(task.getConfiguration().getWaitUntilFullyPublished().get()).isTrue();
     assertThat(task.getConfiguration().getStatusRequestInterval().get()).isEqualTo(Duration.ofSeconds(5));
     assertThat(task.getConfiguration().getMaxStatusRetries().get()).isEqualTo(7);
-    assertThat(task.getConfiguration().getBaseUrl().get()).isEqualTo(URI.create("https://example.test/"));
+    assertThat(task.getConfiguration().getPublisherUrl().get()).isEqualTo(URI.create("https://example.test/"));
     assertThat(task.getConfiguration().getDeploymentName().get()).isEqualTo("custom-deployment");
   }
 
@@ -332,7 +332,7 @@ class MavenCentralConfigurationTests {
     task.getDeploymentIdFile().set(directory.resolve("deployment-id.txt").toFile());
     configuration.getStatusRequestInterval().set(Duration.ofMillis(1));
     if (server != null) {
-      configuration.getBaseUrl().set(URI.create("http://127.0.0.1:" + server.getAddress().getPort() + "/"));
+      configuration.getPublisherUrl().set(URI.create("http://127.0.0.1:" + server.getAddress().getPort() + "/"));
     }
     return task;
   }

@@ -57,7 +57,7 @@ public abstract class MavenCentralExtension {
     getStatusRequestInterval().convention(Duration.ofSeconds(1));
     getMaxStatusRetries().convention(3);
     getMaxDeploymentWait().convention(Duration.ofMinutes(60));
-    getBaseUrl().convention(URI.create("https://central.sonatype.com"));
+    getPublisherUrl().convention(URI.create("https://central.sonatype.com"));
     getSnapshotRepositoryUrl().convention(URI.create("https://central.sonatype.com/repository/maven-snapshots"));
     getBundle().getFormat().convention(BundleFormat.ZIP);
     getBundle().getArchiveFileName().convention(
@@ -140,12 +140,12 @@ public abstract class MavenCentralExtension {
   public abstract Property<Duration> getMaxDeploymentWait();
 
   /**
-   * Returns the Maven Central Publisher API base URL
+   * Returns the Maven Central Publisher URL
    * (default: {@code https://central.sonatype.com/}).
    *
-   * @return the API base URL
+   * @return the Publisher URL
    */
-  public abstract Property<URI> getBaseUrl();
+  public abstract Property<URI> getPublisherUrl();
 
   /**
    * Returns the Maven Central snapshots repository URL
