@@ -23,6 +23,7 @@ import org.gradle.api.internal.project.ProjectInternal;
 import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.api.tasks.Delete;
+import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.bundling.AbstractArchiveTask;
 import org.gradle.api.tasks.bundling.Compression;
 import org.gradle.api.tasks.bundling.Tar;
@@ -56,7 +57,8 @@ class MavenCentralPublishingPluginTests {
     project.getPluginManager().apply(MavenCentralPublishingPlugin.class);
     extension = project.getExtensions().getByType(MavenCentralExtension.class);
     ((ProjectInternal) project).evaluate();
-    new MavenCentralPublishingPlugin().configurePublishing(project, extension);
+    TaskProvider<?> publishToMavenCentral = new MavenCentralPublishingPlugin().configurePublishing(project, extension);
+    project.getTasks().named("publish").configure(task -> task.dependsOn(publishToMavenCentral));
   }
 
   @Test
