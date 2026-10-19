@@ -8,7 +8,7 @@ on:
       - 'CHANGELOG.md'
       - 'CONTRIBUTING.md'
       - 'AGENTS.md'
-      - 'src/docs/**'
+      - 'docs/**'
       - 'logo.svg'
       - '.run/**'
       - '.idea/**'
